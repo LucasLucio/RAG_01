@@ -1,0 +1,87 @@
+================= PROMPT =================
+   Em Uniface utilizando ProcScript como linguagem de programação, crie uma operação que valide um CPF. 
+   Deve receber uma string como parâmetro de entrada contendo o CPF sem formatação e é necessário que a operação retorne um booleano indicando se é um CPF válido. 
+   Sendo os valores possíveis, verdadeiro para um CPF válido e falso para um inválido.
+
+   As regras de calidação de um CPF são as descritas abaixo:
+
+   Para se validar um CPF se calcula o primeiro dígito verificador a partir dos 9 primeiros dígitos do CPF.
+   Em seguida, calcula o segundo dígito verificador a partir dos 10 primeiros dígitos do CPF incluindo o primeiro dígito, obtido na primeira parte.
+
+   Como calcular o primeiro dígito:
+
+      Separar os primeiros 9 dígitos do CPF e multiplicar cada um dos números, 
+      desde o primeiro até o nono número, inciar a multiplicação do primeiro em 10 e decrescer em 1 o multiplicador a cada dígido seguinte. 
+      Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
+      Considere o resto da divisão para pbter o resultado do dígito. 
+         - Se for menor que 2, então o dígito é igual a 0 (Zero).
+         - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
+
+   Como calcular o segundo dígito:
+
+   Para  calcular o segundo dígito vamos usar o primeiro digito já calculado. 
+   Vamos montar a mesma tabela de multiplicação usada no cálculo do primeiro dígito. 
+   Só que desta vez usaremos na segunda linha os valores 11,10,9,8,7,6,5,4,3,2 já que estamos incluindo mais um digito no cálculo(o primeiro dígito calculado):
+
+      O calculo é semelhante ao do primeiro dígito, a diferença neste caso é que são 10 dígitos a serem multiplicados, incluindo o primeiro verificador. 
+      Para multiplicar se inicia em 11 como multiplicador do primeiro número e segue decrescendo até o décimo número. 
+      Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
+      Considere o resto da divisão para pbter o resultado do dígito. 
+         - Se for menor que 2, então o dígito é igual a 0 (Zero).
+         - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
+
+   após obter os dois últimos dígitos é necessário verificar se eles são iguais ao informado no CPF de entrada.
+
+
+================= RESPOSTA  =================
+   Aqui está uma operação em ProcScript para validar um CPF:
+   ```
+   OPERACAO CPF_VALIDO
+      INICIO
+         LOCAL cpfSemFormatacao, cpfCalculo1, cpfCalculo2, cpfValido;
+
+         cpfSemFormatacao = :CPF;
+         cpfValido = .F.
+
+         IF tamanho(cpfSemFormatacao) < 11 OU tamanho(cpfSemFormatação) > 11 THEN
+            cpfValido = .F.
+         ELSEIF caractere(cpfSemFormatação,1) EQ '0' OR caractere(cpfSemFormatação,2) EQ '0' OR 
+               caractere(cpfSemFormatação,3) EQ '0' OU caractere(cpfSemFormatação,4) EQ '0' OU
+               caractere(cpfSemFormatação,5) EQ '0' OU caractere(cpfSemFormatação,6) EQ '0' OU 
+               caractere(cpfSemFormatação,7) EQ '0' OU caractere(cpfSemFormatação,8) EQ '0' OU
+               caractere(cpfSemFormatação,9) EQ '0' OU caractere(cpfSemFormatação,10) EQ '0'
+            THEN
+               cpfValido = .F.
+         ENDIF;
+
+         CPF_CALCULO1 = 0;
+         FOR i = 1 TO 9
+            CPF_CALCULO1 += (i * digito(cpfSemFormatação,i)) MOD 11;
+         ENDFOR;
+         CPF_CALCULO1 = CPF_CALCULO1 DIV 11;
+         IF CPF_CALCULO1 EQ 10 THEN CPF_CALCULO1 = 0; ENDIF;
+
+         CPF_CALCULO2 = 0;
+         FOR i = 1 TO 10
+            CPF_CALCULO2 += (i * digito(cpfSemFormatação,i)) MOD 11;
+         ENDFOR;
+         CPF_CALCULO2 = CPF_CALCULO2 DIV 11;
+         IF CPF_CALCULO2 EQ 10 THEN CPF_CALCULO2 = 0; ENDIF;
+
+         IF CPF_CALCULO1 EQ caractere(cpfSemFormatação,11) AND CPF_CALCULO2 EQ 
+   caractere(cpfSemFormatação,12)
+            THEN cpfValido = .T.
+         FIM;
+
+      CPF_VALIDO = cpfValido
+      FIM
+   ENDOPERACAO
+   ```
+   Essa operação faz as seguintes verificações para determinar se o CPF é válido:
+
+   1. Verifica se o tamanho do CPF é de 11 caracteres e não contém nenhuma '0' em seus dígitos.
+   2. Calcula os dois últimos dígitos do CPF utilizando a fórmula descrita na documentação.
+   3. Verifica se os dois últimos dígitos calculados são iguais aos informados no CPF de entrada.
+
+   Se todas as verificações forem verdadeiras, a operação atribuirá `.T.` ao CPF_VALIDO; caso 
+   contrário, será `.F.`.

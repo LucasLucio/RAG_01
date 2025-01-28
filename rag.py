@@ -1,79 +1,68 @@
 #Importanto bibliotecas necessárias
-import streamlit as st
-import ollama
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import WebBaseLoader
+from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import Chroma
 from langchain_ollama import OllamaEmbeddings
+from langchain_community.document_loaders import DirectoryLoader
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_ollama import ChatOllama
+import os
 
-import os 
-os.environ['USER_AGENT'] = 'myagent'
+from langchain_core.prompts import ChatPromptTemplate
+import  nltk
 
-#Ciando página para input de fontes
-st.title("RAG com página web")
-st.caption("Extraia informações de uma página da web usando RAG com Llama-3")
+nltk.download('punkt_tab')
+nltk.download('averaged_perceptron_tagger_eng')
 
-webpage_url = st.text_input("Insira a página web", type="default")
+def simple_rag(directory, question):
 
-
-if webpage_url:
-    loader = WebBaseLoader(webpage_url)
-
-    #Carrega documentos
-    docs = loader.load()
-
-    #Define tamanho de pedaços de texto
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=10)
-
-    #Divide documentos em pedaços
-    splits = text_splitter.split_documents(docs)
-
-    #Cria embrdding
-    embeddings = OllamaEmbeddings(model="llama3")
-
-    #Cria vetorstore com documentos quebrados e embeddings
-    vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
-
-
-    #Função para perguntar ao modelo
-    def ollama_llm(question, context):
-
-        #Froamta pergunta e contexto
-        formatted_prompt = f"Question: {question}\n\nContext: {context}"
-
-        #Criando pergunta ao modelo
-        response = ollama.chat(model='llama3', messages=[{'role': 'user', 'content': formatted_prompt}])
-
-        #Obtendo resposta
-        return response['message']['content']
-
-    retriever = vectorstore.as_retriever()
-
-    #Função para adicionar contexto
-    def combine_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
+    model = ChatOllama(model="llama3")
+  
+    docLoad = DirectoryLoader(directory, glob="**/*.pdf", show_progress=True).load()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    splits = text_splitter.split_documents(docLoad)
     
-    #Função para chamar RAG
-    def rag_chain(question):
+    persistance_directory = "./chroma_db"
 
-        #Recupera documentos
-        retrieved_docs = retriever.invoke(question)
+    if(os.path.exists(persistance_directory) and os.path.isdir(persistance_directory)):
+        vectorstore = Chroma(persist_directory = persistance_directory, embedding_function=OllamaEmbeddings(model="llama3"))
+    else:
+        vectorstore = Chroma.from_documents(documents=splits, embedding=OllamaEmbeddings(model="llama3"), persist_directory = persistance_directory)
 
-        #Formata contexto
-        formatted_context = combine_docs(retrieved_docs)
-        print(formatted_context)
+    retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 6})
 
-        #Retorna resposta
-        return ollama_llm(question, formatted_context)
+    system_prompt = (
+        "Considere que você é um assistente de programação com foco em codificação para Uniface."
+        "Use os seguintes pedaços de contexto recuperado para responder as solicitações realizadas."
+        "Se não souber as respostas ou não conseguir gerar algum código para a solicitação diga que não é possível realizar a operação desejada."
+        "\n\n"
+        "{context}"
+    )
 
-    st.success(f"Carregado {webpage_url} com sucesso!")
-   
-prompt = st.text_input("Pergunte algo para o modelo", type="default")
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "{input}")
+        ]
+    )
 
-#Se houver pergunta, chama função do RAG
-if prompt:
-    #Chama função do RAG
-    result = rag_chain(prompt)
+    question_answer_chain = create_stuff_documents_chain(model, prompt)
+    rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
-    #Mostra resultado
-    st.write(result)
+    response = rag_chain.invoke({"input": question})
+    response["answer"]
+
+    print("================== RESPONSE ==================")
+    print(response["answer"])
+    print("================ END RESPONSE ================")
+
+
+def main():
+    directory = input("Caminho para os docs de análise: \n")
+    question = input("Digite sua pergunta: \n")
+    simple_rag(directory, question)
+
+
+if __name__ == "__main__":
+    main()

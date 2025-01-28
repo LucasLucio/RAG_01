@@ -1,0 +1,107 @@
+---
+title: "DESAFIOS NA GERAÇÃO DE CÓDIGO EM LINGUAGENS PROPRIETÁRIAS: UM ESTUDO COM O MODELO LLAMA E UNIFACE"
+date: last-modified
+date-format: "DD/MM/YYYY"
+authors:
+  - name: Lucas Lucio
+    affiliation: COAMO/UTFPR
+format: 
+    html:
+        toc: true
+        toc-depth: 2
+        toc-expand: 2
+        toc-location: right
+        number-sections: false
+        number-depth: 3
+        embed-resources: true
+        toc-title: Sumário
+---
+
+<style>body {text-align: justify;}</style>
+
+# Configurações Iniciais
+
+  Para realizar as solicitações e geração dos códigos é necessário inicialmente executar uma instancia do modelo Llama em sua versão 3.1. Para isso siga as etapas descritas abaixo. 
+
+## Execução modelo Llama 3.1
+  O modelo será instalado de forma simplificada utilizando a ferramenta Ollama, disponível em `https://ollama.com/`. 
+  
+  Para realizar a instalação utilize o comando:
+
+  ```
+    curl -fsSL https://ollama.com/install.sh | sh
+  ```
+
+  Após as instalação bem sucedida é necessário executar o modelo.
+
+  Execute primeiro:
+  
+  ```
+    ollama start
+  ```
+
+  E após o comando:
+  
+  ```
+    ollama run llama3.1
+  ```
+
+
+  Desta forma teremos uma instância do modelo Llama 3.1 rodando localmente e com um chat executando via terminal. Nele é possível iniciar as solicitações. 
+
+# Implementação do RAG
+
+```{python}
+import pandas as pd
+import numpy as np
+from dotenv import load_dotenv, find_dotenv
+import os
+import re
+import sys
+```
+
+
+## Configurações de Ambiente e Path do Python
+
+
+Para fazer o treinamento, é necessário ter um arquivo `.env`, conforme descrito no `readme.md`.
+
+```{python}
+load_dotenv("../../.env")
+```
+
+```{python}
+sys.path.insert(1, os.path.join(sys.path[0], '../../'))
+```
+
+
+## Definição dos Artefatos de Treinamento
+
+```{python}
+LOCAL_DDL = "../../artefatos-treinamento/DDL_dm_financeiro.txt"
+LOCAL_DOC_CONTEXTO = "../../artefatos-treinamento/documento_contexto_dm_financeiro.txt"
+LOCAL_PAR_REFERENCIAL = "../../artefatos-treinamento/par_referencial_dm_financeiro.csv"
+LOCAL_PROMPT_INICIAL = "../../artefatos-treinamento/prompt_inicial_dm_financeiro.txt"
+```
+
+
+
+# Condução do Estudo
+
+## Descrição do Estudo
+
+Vamos continuar com a experimentação em uma primeira tentativa de engenharia de prompt. O resultado esperado é um prompt funcional usando Llama 3.3 8B.....
+
+## O prompt inicial
+
+....
+
+## Passo 2 do estudo
+
+## Passo 3 do estudo
+
+## ....
+
+## Conclusão
+
+Uma conclusão, que pode ser complexa caso o estudo seja 

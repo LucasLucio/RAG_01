@@ -1,0 +1,112 @@
+================= PROMPT =================
+   Em Uniface utilizando ProcScript como linguagem de programação, crie uma operação que valide um CPF. 
+   Deve receber uma string como parâmetro de entrada contendo o CPF sem formatação e é necessário que a operação retorne um booleano indicando se é um CPF válido. 
+   Sendo os valores possíveis, verdadeiro para um CPF válido e falso para um inválido.
+
+   As regras de calidação de um CPF são as descritas abaixo:
+
+   Para se validar um CPF se calcula o primeiro dígito verificador a partir dos 9 primeiros dígitos do CPF.
+   Em seguida, calcula o segundo dígito verificador a partir dos 10 primeiros dígitos do CPF incluindo o primeiro dígito, obtido na primeira parte.
+
+   Como calcular o primeiro dígito:
+
+      Separar os primeiros 9 dígitos do CPF e multiplicar cada um dos números, 
+      desde o primeiro até o nono número, inciar a multiplicação do primeiro em 10 e decrescer em 1 o multiplicador a cada dígido seguinte. 
+      Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
+      Considere o resto da divisão para pbter o resultado do dígito. 
+         - Se for menor que 2, então o dígito é igual a 0 (Zero).
+         - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
+
+   Como calcular o segundo dígito:
+
+   Para  calcular o segundo dígito vamos usar o primeiro digito já calculado. 
+   Vamos montar a mesma tabela de multiplicação usada no cálculo do primeiro dígito. 
+   Só que desta vez usaremos na segunda linha os valores 11,10,9,8,7,6,5,4,3,2 já que estamos incluindo mais um digito no cálculo(o primeiro dígito calculado):
+
+      O calculo é semelhante ao do primeiro dígito, a diferença neste caso é que são 10 dígitos a serem multiplicados, incluindo o primeiro verificador. 
+      Para multiplicar se inicia em 11 como multiplicador do primeiro número e segue decrescendo até o décimo número. 
+      Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
+      Considere o resto da divisão para pbter o resultado do dígito. 
+         - Se for menor que 2, então o dígito é igual a 0 (Zero).
+         - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
+
+   após obter os dois últimos dígitos é necessário verificar se eles são iguais ao informado no CPF de entrada.
+
+
+================= RESPOSTA  =================
+   Aqui está um exemplo de operação em ProcScript que valida um CPF:
+   ```
+   operation validate_cpf
+   params
+      cpf : IN string
+      message : OUT string
+   endparams
+
+   variables
+      vCPF : numeric
+      vDigito1 : numeric
+      vDigito2 : numeric
+      vSomador : numeric
+   endvariables
+
+   begin
+      -- Convertendo o CPF para um número
+      vCPF = $numeric(cpf, 11)
+
+      -- Verificando se o CPF é válido (10 dígitos)
+      if length(vCPF) != 11 then
+         message = "CPF inválido: deve ter 11 caracteres"
+         return (-1)
+      end if
+
+      -- Calculando o primeiro dígito verificador
+      vDigito1 = $mod(10 * ($sum($digit(vCPF, 1, 9)) % 11), 11)
+
+      -- Verificando se o primeiro dígito verificador é válido (0 a 9)
+      if vDigito1 < 0 or vDigito1 > 9 then
+         message = "CPF inválido: primeiro dígito verificador inválido"
+         return (-1)
+      end if
+
+      -- Calculando o segundo dígito verificador
+      vSomador = $sum($digit(vCPF, 1, 10))
+      vDigito2 = $mod(11 - ($mod(vSomador, 11)), 11)
+
+      -- Verificando se o segundo dígito verificador é válido (0 a 9)
+      if vDigito2 < 0 or vDigito2 > 9 then
+         message = "CPF inválido: segundo dígito verificador inválido"
+         return (-1)
+      end if
+
+      -- Verificando se o CPF é válido
+      if vCPF = (vCPF / 10000) * 10000 + vDigito1 * 10 + vDigito2 then
+         message = "CPF válido!"
+      else
+         message = "CPF inválido: não condiz com a fórmula de verificação"
+      end if
+
+      return (0)
+   end
+   ```
+   Essa operação verifica se o CPF é válido e retorna uma mensagem indicando se o CPF é válido ou não. Ela converte o CPF para um número, calcula os dois dígitos verificadores e verifica se eles são válidos. Se todos os testes forem passados com sucesso, a operação retorna que o CPF é válido.
+
+   Para usar essa operação em seu aplicativo Uniface, basta chamá-la com o CPF como parâmetro de entrada e uma variável para armazenar a mensagem de resultado. Por exemplo:
+   ```
+   trigger validate_cpf_trigger
+   params
+      cpf : IN string
+   endparams
+
+   variables
+      message : OUT string
+   endvariables
+
+   begin
+      call operation validate_cpf(cpf, message)
+      if message = "CPF válido!" then
+         -- CPF é válido, faça algo com isso
+      else
+         -- CPF não é válido, faça algo com isso
+      end if
+   end
+   ```
