@@ -1,0 +1,95 @@
+
+================= PROMPT =================
+  Em Uniface, crie uma operation que processe uma lista de produtos, e os lotes de cada produto em estoque, para cada produto deve ser analisado:
+  - O código do produto
+  - A quantidade de unidades vencidas que não estão mais apropriadas para comercialização
+  Deve ser retornado em uma única struct a quantidade de produtos para cada código que está vencida.
+
+  ================= RESPOSTA =================
+    Aqui está um exemplo de como você pode criar uma operação em ProcScript para processar uma lista de produtos e lotes de estoque em Uniface:
+      ```
+      proc get_expired_products()
+
+        local l_products, l_product, l_lot, l_expiration_date, l_quantity
+
+        // Declaração da estrutura de dados que será retornada
+        struct expired_products = {
+            code: string,
+            quantity: integer
+        }
+
+        // Inicialização do array que armazenará os resultados
+        local l_expired_products[] = []
+
+        // Loop through the products
+        for each l_product in l_products
+
+            // Initialize the sum of expired quantities to 0
+            local l_expired_quantity = 0
+
+            // Loop through the lots of the product
+            for each l_lot in l_product.lots
+
+              // Verifica se a data de vencimento do lote está expirada
+              if l_lot.expiration_date < $current_date then
+
+                  // Soma a quantidade de unidades vencidas para o produto
+                  l_expired_quantity = l_expired_quantity + l_lot.quantity
+
+              fi
+
+            enddo
+
+            // Verifica se há alguma quantidade de unidades vencidas para o produto
+            if l_expired_quantity > 0
+
+              // Adiciona o produto com a quantidade de unidades vencidas ao array de resultados
+              append l_expired_products[] = {
+                  code: l_product.code,
+                  quantity: l_expired_quantity
+              }
+
+            fi
+
+        enddo
+
+        // Retorna o array de resultados
+        return l_expired_products
+
+      end proc
+      ```
+      Este procedimento assume que você tem uma estrutura `l_products` que armazena a lista de produtos, cada um com seus lotes e datas de vencimento. O procedimento percorre 
+      os produtos, calcula a quantidade de unidades vencidas para cada produto e retorna um array de structs contendo o código do produto e a quantidade de unidades vencidas.
+
+      Para usar este procedimento em Uniface, você pode chamar-o passando a estrutura `l_products` como parâmetro, por exemplo:
+      ```
+      local l_products = [] // Armazena a lista de produtos
+
+      // Adiciona os produtos ao array
+      append l_products[] = {
+        code: "P1",
+        lots: [
+            { expiration_date: $date(2022-12-31), quantity: 10 },
+            { expiration_date: $date(2023-01-31), quantity: 20 }
+        ]
+      }
+
+      // Adiciona mais produtos ao array
+      append l_products[] = {
+        code: "P2",
+        lots: [
+            { expiration_date: $date(2023-02-28), quantity: 5 },
+            { expiration_date: $date(2023-03-31), quantity: 15 }
+        ]
+      }
+
+      // Chama o procedimento
+      local l_expired_products = get_expired_products(l_products)
+
+      // Imprime os resultados
+      for each product in l_expired_products
+
+        print "Product:", product.code, ", Quantity:", product.quantity
+
+      enddo
+      ```

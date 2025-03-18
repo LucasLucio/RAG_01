@@ -11,7 +11,7 @@ format:
         toc-depth: 2
         toc-expand: 2
         toc-location: right
-        number-sections: false
+        number-sections: true
         number-depth: 3
         embed-resources: true
         toc-title: Sumário
@@ -22,6 +22,7 @@ format:
 # Configurações Iniciais
 
   Para realizar as solicitações e geração dos códigos é necessário inicialmente executar uma instancia do modelo Llama em sua versão 3.1. Para isso siga as etapas descritas abaixo. 
+  Toda a execução deste projeto requer utilizar uma versão de sistema operacional Linux (aqui utilizado o Debian 12). 
 
 ## Execução modelo Llama 3.1
   O modelo será instalado de forma simplificada utilizando a ferramenta Ollama, disponível em `https://ollama.com/`. 
@@ -46,45 +47,160 @@ format:
     ollama run llama3.1
   ```
 
-
   Desta forma teremos uma instância do modelo Llama 3.1 rodando localmente e com um chat executando via terminal. Nele é possível iniciar as solicitações. 
 
 # Implementação do RAG
+  A segunda etapa é a implementação do RAG que será utilizado para as solicitações. Nele será implementado todo o modelo de busca dentro dos arquivos imputados em uma base vetorial para a análise do modelo Llama. 
+
+## Definições da linguagem de programação
+  Para a codificação foi utilizado a linguagem de programação Python, por conta de sua facilidade e praticidade de implementar integrações com modelos LLM e ampla documentação e bibliotecas para este tipo de desenvolvimento. 
+
+## Importação das bibliotecas
+  Abaixo estão descritas as bibliotecas utilizadas para a codificação do RAG. 
 
 ```{python}
-import pandas as pd
-import numpy as np
-from dotenv import load_dotenv, find_dotenv
-import os
-import re
-import sys
+  from langchain.text_splitter import RecursiveCharacterTextSplitter
+  from langchain_chroma import Chroma
+  from langchain_ollama import OllamaEmbeddings
+  from langchain_community.document_loaders import DirectoryLoader
+  from langchain.chains import create_retrieval_chain
+  from langchain.chains.combine_documents import create_stuff_documents_chain
+  from langchain_ollama import ChatOllama
+  from langchain_core.prompts import ChatPromptTemplate
+  import os
+  import nltk
 ```
 
-
-## Configurações de Ambiente e Path do Python
-
-
-Para fazer o treinamento, é necessário ter um arquivo `.env`, conforme descrito no `readme.md`.
+  Grande parte do desenvolvimento utiliza da biblioteca Langchain, que facilita a integração com os modelos e execução de ferramentas para a criação e análise dos *embeddings*. Esta biblioteca biblioteca está disponível para acesso em `https://www.langchain.com/`.
 
 ```{python}
-load_dotenv("../../.env")
+  #Baixando pacotes específicos do NLTK (Natural Language Toolkit)
+  nltk.download('punkt_tab')
+  nltk.download('averaged_perceptron_tagger_eng')
 ```
+
+  A etapa acima é especifica para a incorporação de bibliotecas que será utilizadas para a tokenização e etiquetagem, usando a biblioteca NLTK. Estes são processos importantes durante o processamento de informações em um RAG.
+
+## Definição do método RAG
+  A codificação de um RAG não é complexa, basta uma função que realize as operações principais para que seja implementado todas as etapas. Abaixo é possível visualizar o método principal RAG e a definição de cada linha executada. 
 
 ```{python}
-sys.path.insert(1, os.path.join(sys.path[0], '../../'))
+  def simple_rag(directory, question):
+    # Inicializa o modelo de chat Ollama com o modelo "llama3"
+    model = ChatOllama(model="llama3", )
+    # Define o diretório de persistência para o banco de dados Chroma
+    persistance_directory = "./chroma_db"
+
+    if directory is not None:
+        # Carrega documentos do diretório especificado
+        docLoad = DirectoryLoader(directory, glob="**/*.pdf", show_progress=True).load()
+        # Divide os documentos em pedaços menores
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=100)
+        splits = text_splitter.split_documents(docLoad)
+
+        if os.path.exists(persistance_directory) and os.path.isdir(persistance_directory):
+            # Carrega o banco de dados Chroma existente
+            vectorstore = Chroma(persist_directory=persistance_directory, embedding_function=OllamaEmbeddings(model="llama3"))
+        else:
+            # Cria um novo banco de dados Chroma a partir dos documentos divididos
+            vectorstore = Chroma.from_documents(documents=splits, embedding=OllamaEmbeddings(model="llama3"), persist_directory=persistance_directory)
+    else:
+        if os.path.exists(persistance_directory) and os.path.isdir(persistance_directory):
+            # Carrega o banco de dados Chroma existente
+            vectorstore = Chroma(persist_directory=persistance_directory, embedding_function=OllamaEmbeddings(model="llama3"))
+        else:
+            # Imprime uma mensagem de erro se nenhum diretório for fornecido e o banco de dados persistente não existir
+            print("Nenhum diretório fornecido e a base de dados persistente não existe.")
+            return
+
+    # Configura o recuperador de documentos com base na similaridade
+    retriever = vectorstore.as_retriever(search_type="similarity_score_threshold", search_kwargs={"k": 7, "score_threshold": 0.7})
+
+    # Define o prompt do sistema para o modelo de chat
+    system_prompt = (
+        "Considere que você é um assistente de programação com foco em codificação para Uniface."
+        "Use os seguintes pedaços de contexto recuperado para responder as solicitações realizadas."
+        "Se não souber as respostas ou não conseguir gerar algum código para a solicitação diga que não é possível realizar a operação desejada."
+        "\n\n"
+        "{context}"
+    )
+
+    # Cria o template de prompt para o modelo de chat
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "{input}")
+        ]
+    )
+
+    # Cria a cadeia de perguntas e respostas usando o modelo e o prompt
+    question_answer_chain = create_stuff_documents_chain(model, prompt)
+    # Cria a cadeia de recuperação usando o recuperador e a cadeia de perguntas e respostas
+    rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+
+    # Invoca a cadeia de recuperação com a pergunta fornecida
+    response = rag_chain.invoke({"input": question})
+    response["answer"]
+
+    # Imprime a resposta obtida
+    print("================== RESPONSE ==================")
+    print(response["answer"])
+    print("================ END RESPONSE ================")
+
 ```
 
+#### Configurações importantes para o RAG
 
-## Definição dos Artefatos de Treinamento
+  Model
+  : Refere-se ao modelo de linguagem que está sendo utilizado para gerar respostas. No caso aplicado aqui está sendo utilizado o Llama 3.1, mas pode ser utilizado outros modelos compativeis com as biblitecas disponíveis. Considerando que será necessário alteração de código para execução em um modelo diferente ao proposto. 
+
+  Chunk Size
+  : Refere-se ao modelo de linguagem que está sendo utilizado para gerar respostas. Os documentos inseridos para o RAG são divididos em pedaços menores para facilitar a indexação e a recuperação de informações relevantes. O tamanho do chunk pode afetar a precisão e a eficiência da recuperação.
+
+  Chunk Overlap
+  : Quantidade de sobreposição entre os chunks.Esta sobreposição pode ajudar a garantir que informações importantes que estão no limite entre dois chunks não sejam perdidas.
+
+
+  Search Type
+  : Tipo de busca que está sendo realizada. Se refere ao algoritmo ou método específico usado para recuperar informações do banco de dados.
+
+  Search Kwargs
+  : Argumentos adicionais (keyword arguments) passados para a função de busca. incluem parâmetros como filtros, limites de resultados, para ajustar o comportamento da busca.
+
+  System Prompt
+  : Prompt do sistema usado como auxílio de linguagem na geração de respostas. Inclui instruções específicas ou contexto adicional para ajudar o modelo a produzir respostas precisas e relevantes.
+
+  > Todos os valores utilizados no modelo proposto podem ser alternados para uma melhor adaptação a necessidade do qual o RAG estará sendo aplicado. 
+
+### Método de execução
+  A definição do método chamado `main` para a execução do RAG serve apenas para as trativas de *input* dos documentos de contexto para a aplicação e do questionamento a ser feito ao modelo. 
 
 ```{python}
-LOCAL_DDL = "../../artefatos-treinamento/DDL_dm_financeiro.txt"
-LOCAL_DOC_CONTEXTO = "../../artefatos-treinamento/documento_contexto_dm_financeiro.txt"
-LOCAL_PAR_REFERENCIAL = "../../artefatos-treinamento/par_referencial_dm_financeiro.csv"
-LOCAL_PROMPT_INICIAL = "../../artefatos-treinamento/prompt_inicial_dm_financeiro.txt"
+def main():
+  # Solicita ao usuário se deseja carregar os documentos de análise
+  loadDocs = input("Deseja carregar os documentos de análise? (s/n): \n")
+
+  # Verifica se o usuário deseja carregar os documentos
+  if(loadDocs == 's'):
+      # Solicita ao usuário o caminho para os documentos de análise
+      directory = input("Caminho para os docs de análise: \n")
+  else:
+      # Define o diretório como None se o usuário não quiser carregar os documentos
+      directory = None
+  
+  # Solicita ao usuário que digite sua pergunta
+  question = input("Digite sua pergunta: \n")
+
+  # Chama a função simple_rag passando o diretório e a pergunta como argumentos
+  simple_rag(directory, question)
+
 ```
+## Execução 
+  Para a execução do código e apenas necessário executar o arquivo `.py` em que ele está contido e realizar as inserções de dados via terminal quando questionado. Sequindo sempte a ordem dos questionamentos
 
-
+1. Se deseja carregar algum documento.
+  i) Caso positivo, informar o local dos documentos
+2. Dúvida aplicada ao modelo com contextualização dos documentos inseridos anteriormente ao RAG.
 
 # Condução do Estudo
 

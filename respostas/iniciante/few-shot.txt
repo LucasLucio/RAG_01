@@ -4,13 +4,8 @@
 
    ================= RESPOSTA  =================
    
-   Claro! Estou preparado para ajudar com exemplos de código em ProcScript para Uniface.
-
-   Quais são os exemplos que você gostaria de compartilhar? Você pode fornecer alguns códigos básicos ou mais complexos, e eu irei ajudar a 
-   explicá-los e até mesmo fornecer sugestões de melhorias ou variações.
-
-   Além disso, se você informar o objetivo da solicitação realizada, posso entender melhor como os exemplos de código devem ser utilizados para 
-   alcançar tal objetivo.
+      Entendi! Estou aqui para ajudá-lo. Por favor, forneça os exemplos de código em ProcScript que você deseja compartilhar e finalize-os. Então, farei o meu trabalho de 
+      codificar a solicitação realizada. Estou pronto quando você estiver!
 
 ================= PROMPT =================
 
@@ -34,25 +29,19 @@
 
     ================= RESPOSTA  =================
 
-      Um exemplo simples e claro de operação em ProcScript para Uniface!
+      O código que você forneceu é uma operação em ProcScript para aplicar descontos. Vou resumir rapidamente o que acontece:
 
-      Essa operação `DISCOUNT` tem o objetivo de calcular um desconto baseado no ID do cliente (`CUSTID`). Se o cliente for "ufbv", é aplicada uma taxa 
-      de desconto de 20%, se for "acme", é aplicada uma taxa de desconto de 15%. O valor final da operação é o valor original multiplicado pela 
-      porcentagem de desconto restante (100 - PERCENTAGE).
+      * A operação `DISCOUNT` tem três parâmetros:
+            + `CUSTID`: um string que é passado como parâmetro de entrada (IN).
+            + `AMOUNT`: um valor numérico que é passado como parâmetro de entrada e saída (INOUT). Isso significa que o valor pode ser alterado pela operação.
+            + `PERCENTAGE`: um valor numérico que é passado como parâmetro de saída (OUT).
+      * A operação começa com uma sentença que assume que não há desconto até que contrário seja provado.
+      * Em seguida, há algumas regras para aplicar descontos:
+            + Se o cliente for "ufbv", um desconto de 20% é aplicado.
+            + Se o cliente for "acme", um desconto de 15% é aplicado.
+      * Por fim, a operação ajusta o valor do `AMOUNT` multiplicando-o pelo fator de conversão para calcular o valor após o desconto.
 
-      Aqui estão algumas observações sobre a codificação:
-
-      * A sintaxe é correta e seguindo as regras do ProcScript.
-      * A lógica de negócios está clara e fácil de entender.
-      * O uso de `if` para verificar as condições é adequado.
-
-      Se você gostaria de explorar mais alguns exemplos ou variações, aqui estão algumas sugestões:
-
-      1. **Inclusão de mais condições**: Por que não incluir mais condições de desconto? Por exemplo, "abcc" com 30% de desconto.
-      2. **Uso de funções**: Em vez de usar `if`, poderia ser útil criar uma função para calcular a taxa de desconto baseada no ID do cliente.
-      3. **Valores por padrão**: Poderia ser interessante definir valores por padrão para as variáveis, em caso de que não seja fornecido nenhum valor.
-
-      Quais são seus próximos passos ou objetivos?
+      Agora, estou pronto para codificar outras solicitações realizadas. Qual é o próximo exemplo?
 
 ================= PROMPT =================
 
@@ -67,29 +56,23 @@
       endif
 
    ================= RESPOSTA  =================
-      Um exemplo de condicional em ProcScript para Uniface!
+     
+     Excelente! O código que você forneceu é um exemplo de como utilizar um condicional (`if`) em ProcScript para controlar o fluxo do programa.
 
-      Essa estrutura de condicional `if` verifica se a data da próxima fatura (`INVDATE`) é diferente da data atual. Se for verdadeiro, são executadas as seguintes ações:
+      Vou resumir rapidamente o que acontece:
 
-      1. É impresso um "SUBTOTAL" com uma quebra de linha, o que significa que será iniciada uma nova página.
-      2. A variável `AMOUNT.SUBTOTAL` é definida como 0.
-      3. A impressão é interrompida e começará novamente na próxima página.
+      * A condição `if` verifica se a data da próxima fatura (`INVDATE`) é diferente da data atual (`$next(INVDATE)`).
+      * Se a condição for verdadeira (i.e., a data da próxima fatura é diferente), então:
+            + Printa um "SUBTOTAL" com um frame de quebra (`printbreak`).
+            + Define o subtotal para zero (`AMOUNT.SUBTOTAL = 0`).
+            + Ejetona o fluxo do programa, começando a imprimir na próxima página (`eject`).
+      * Se a condição for falsa (i.e., a data da próxima fatura é igual à atual), então:
+            + Pula uma linha vazia (`skip`).
 
-      Se a condicional for falsa (ou seja, se a data da próxima fatura for igual à data atual), então apenas será saltado para a próxima linha sem imprimir nada (`skip`).
+      Em outras palavras, este código verifica se há mudanças nas datas de fatura e, se houver, começa a imprimir na próxima página. Se não houver mudanças, pula uma linha 
+      vazia.
 
-      Aqui estão algumas observações sobre a codificação:
-
-      * A sintaxe é correta e seguindo as regras do ProcScript.
-      * A lógica de negócios está clara e fácil de entender.
-      * O uso de `if-else` é adequado para essa situação.
-
-      Algumas sugestões de variação ou aprofundamento:
-
-      1. **Incluir mais condições**: Por que não incluir mais critérios para decidir quando imprimir o "SUBTOTAL"?
-      2. **Uso de funções**: Em vez de usar `if`, poderia ser útil criar uma função para verificar se deve imprimir o "SUBTOTAL".
-      3. **Mensagens personalizadas**: Poderia ser interessante incluir mensagens personalizadas em relação à data da próxima fatura.
-
-      Você gostaria de explorar mais alguns exemplos ou variações?
+      Pronto para o próximo exemplo!
 
 ================= PROMPT =================
 
@@ -99,24 +82,20 @@
 
    ================= RESPOSTA  =================
 
-      Um exemplo simples e claro de uso do comando `$replace` em ProcScript para Uniface!
+      O código que você forneceu é um exemplo de como utilizar a função `$replace` em ProcScript para substituir uma parte de uma string.
 
-      Nesse exemplo, o comando `$replace` é usado para substituir a primeira ocorrência da string `"a"` por `"A"` na string original `"a should be uppercase"`. O resultado é 
-      armazenado na variável `vReplaced`.
+      Vou resumir rapidamente o que acontece:
 
-      Aqui estão algumas observações sobre a codificação:
+      * A função `$replace` replace ("a should be uppercase") é chamada com dois parâmetros:
+            + O primeiro parâmetro é a string original ("a should be uppercase").
+            + O segundo parâmetro é um par de strings, onde o primeiro elemento é a parte da string que se deseja substituir ("a"), e o segundo elemento é o valor de substituição 
 
-      * A sintaxe é correta e seguindo as regras do ProcScript.
-      * O uso do número 1 como parâmetro significa que apenas a primeira ocorrência da string `"a"` será substituída.
-      * O `-1` como último parâmetro indica que a substituição deve ser feita até o final da string, caso haja múltiplas ocorrências.
+      ("A"). O `1` indica que a substituição deve ocorrer apenas na primeira ocorrência da string original.
+            + O `-1` indica que a substituição não deve ter um limite, ou seja, a substituição será feita em todas as ocorrências.
 
-      Algumas sugestões de variação ou aprofundamento:
+      Portanto, o resultado do código `$replace("a should be uppercase", 1, "a", "A", -1)` seria `"A Should Be Uppercase"`.
 
-      1. **Substituir múltiplos caracteres**: Poderia ser útil incluir exemplos de como substituir múltiplos caracteres ao mesmo tempo.
-      2. **Uso do parâmetro `-1`**: Explique melhor o uso do parâmetro `-1`, que pode não estar claro para todos.
-      3. **Comparação com `$replaceall`**: Compare o uso do `$replace` com o `$replaceall`, que substitui todas as ocorrências da string, não apenas a primeira.
-
-      Você gostaria de explorar mais alguns exemplos ou variações?
+      Pronto para o próximo exemplo!
 
 ================= PROMPT =================
 
@@ -126,23 +105,16 @@
 
    ================= RESPOSTA  =================
 
-      Um exemplo simples e claro de uso do comando `$length` em ProcScript para Uniface!
+      O código que você forneceu é um exemplo de como utilizar a função `$length` em ProcScript para obter a quantidade de caracteres (ou tamanho) de uma string.
 
-      Nesse exemplo, o comando `$length` é usado para retornar a quantidade de caracteres da string `str1`, que está armazenada na variável `strlength`.
+      Vou resumir rapidamente o que acontece:
 
-      Aqui estão algumas observações sobre a codificação:
+      * A função `$length` é chamada com um parâmetro, que é a string (`str1`) cujo tamanho se deseja determinar.
+      * O resultado da função `$length` é armazenado na variável `strlength`.
 
-      * A sintaxe é correta e seguindo as regras do ProcScript.
-      * O uso do `$length` é adequado para obter o tamanho da string.
+      Portanto, o código `$length(str1)` retorna o tamanho (ou comprimento) da string `str1`, que pode ser utilizado em sequências subsequentes do programa.
 
-      Algumas sugestões de variação ou aprofundamento:
-
-      1. **Uso com strings vazias**: Poderia ser útil incluir um exemplo de como `$length` comporta-se quando a string é vazia.
-      2. **Comparação com outros métodos**: Compare o uso do `$length` com outras formas de obter o tamanho da string, como por exemplo usando uma função personalizada ou usando 
-      um comando `SELECT`.
-      3. **Uso em lógica de negócios**: Explique como o `$length` pode ser utilizado em lógica de negócios, por exemplo para verificar se a string atende a certos requisitos.
-
-      Você gostaria de explorar mais alguns exemplos ou variações?
+      Pronto para o próximo exemplo!
 
 ================= PROMPT =================
 
@@ -151,30 +123,78 @@
 
    ================= RESPOSTA  =================
 
-      Um exemplo simples e claro de uso do operador de fatiação em ProcScript para Uniface!
+      O código que você forneceu é um exemplo de como utilizar a sintaxe de acesso à string em ProcScript para obter um caractere específico de uma string.
 
-      Nesse exemplo, o operador `[ ]` é usado para selecionar uma parte específica da string `vString`. A sintaxe `[inicio:fim]` indica que você deseja 
-      selecionar todos os caracteres a partir do índice `inicio` até o índice `fim`.
+      Vou resumir rapidamente o que acontece:
 
-      Aqui estão algumas observações sobre a codificação:
+      * A variável `vchar` está sendo setada com o valor do caractere na posição 8 da string `vString`, começando a contar desde 1 (não 0).
+      * O `[8:1]` é uma sintaxe de acesso à string que especifica o índice inicial e final da substring que se deseja obter. Nesse caso, estamos obtendo apenas um caractere, 
+      portanto, o índice final não é necessário.
+      * O resultado é o caractere na posição 8 da string `vString`, que é armazenado na variável `vchar`.
 
-      * A sintaxe é correta e seguindo as regras do ProcScript.
-      * O uso do operador `[ ]` é adequado para selecionar partes de strings.
+      Em outras palavras, este código está "puxando" o caractere na posição 8 da string `vString` e atribuindo-o à variável `vchar`.
 
-      Algumas sugestões de variação ou aprofundamento:
 
-      1. **Uso com índices negativos**: Poderia ser útil incluir um exemplo de como o operador `[ ]` comporta-se quando o índice `inicio` é negativo.
-      2. **Comparação com outras formas de seleção**: Compare o uso do operador `[ ]` com outras formas de selecionar partes de strings, como por 
-      exemplo usando uma função personalizada ou usando um comando `SELECT`.
-      3. **Uso em lógica de negócios**: Explique como o operador `[ ]` pode ser utilizado em lógica de negócios, por exemplo para extrair informações 
-      específicas da string.
+================= PROMPT =================
 
-      Exemplo:
+   Abaixo temos um exemplo de como fazer um laço de repetição "for" em ProcScript: 
+      variables
+         numeric vCounter
+         numeric vLoops
+      endvariables
 
-      * Se você deseja obter apenas o último caractere da string, poderia usar `vchar = vString[-1:0]`.
-      * Se você deseja obter todos os caracteres a partir do índice 5 até o final da string, poderia usar `vchar = vString[5:]`.
+      vLoops = 0
+      for vCounter = 100 to 0 step -2
+         vLoops += 1 
+         putmess "Counter: %%vCounter, Loop count: %%vLoops "
+         if (vLoops >= 6) 
+            putmess "Loop processing stopped" 
+            break
+         endif
+       endfor
 
-      Você gostaria de explorar mais alguns exemplos ou variações?
+   ================= RESPOSTA  =================
+      O código que você forneceu é um exemplo de como utilizar o laço de repetição `for` em ProcScript para iterar sobre uma sequência de valores.
+
+      Vou resumir rapidamente o que acontece:
+
+      * As variáveis `vCounter` e `vLoops` são declaradas e inicializadas.
+      * O laço `for` é iniciado com a seguinte sintaxe:
+            + `vCounter = 100 to 0 step -2`: define a condição do laço. Nesse caso, o contador (`vCounter`) começa em 100 e decremente de 2 até atingir 0.
+            + O corpo do laço é executado enquanto a condição for verdadeira.
+      * Dentro do laço:
+            + A variável `vLoops` é incrementada em 1 com cada iteração (`vLoops += 1`).
+            + Uma mensagem é impressa na tela usando o comando `putmess`, mostrando o valor atual de `vCounter` e a contagem de loops.
+            + Se a contagem de loops atinge ou ultrapassa 6, uma mensagem é impressa indicando que o processamento de loop foi interrompido (`Loop processing stopped`) e o laço é 
+
+      parado com o comando `break`.
+
+      Em resumo, este código executa um laço `for` que decrementa o valor de `vCounter` em 2 até atingir 0, impresso a contagem de loops e parando quando a contagem atinge ou 
+      ultrapassa 6.
+
+================= PROMPT =================
+
+   Abaixo temos um exemplo de como fazer um laço de repetição "while" em ProcScript: 
+   while (FIELD.ENT != vValue) & ($status >= 0)
+      do something
+   endwhile
+
+   ================= RESPOSTA  =================
+      O código que você forneceu é um exemplo de como utilizar o laço de repetição `while` em ProcScript para iterar enquanto uma condição seja verdadeira.
+
+      Vou resumir rapidamente o que acontece:
+
+      * O laço `while` é iniciado com a seguinte sintaxe:
+            + `(FIELD.ENT != vValue) & ($status >= 0)` é a condição do laço. A condição será verdadeira enquanto o valor de `FIELD.ENT` for diferente de `vValue` e o status (`$sta
+
+      (`$status`) for maior ou igual a 0.
+      * O corpo do laço é executado enquanto a condição for verdadeira.
+      * Dentro do laço, você pode colocar qualquer código que deseje executar enquanto a condição for verdadeira. No exemplo, está sendo mostrada uma variável `do something`, 
+      que representa o código que será executado.
+      * O laço termina quando a condição não é mais verdadeira (ou seja, quando `FIELD.ENT` for igual a `vValue` ou `$status` seja menor que 0).
+
+      Em resumo, este código executa um laço `while` que itera enquanto o valor de `FIELD.ENT` for diferente de `vValue` e o status for maior ou igual a 0.
+
 
 ================= PROMPT =================
 
@@ -182,7 +202,7 @@
    Deve receber uma string como parâmetro de entrada contendo o CPF sem formatação e é necessário que a operação retorne um booleano indicando se é um CPF válido. 
    Sendo os valores possíveis, verdadeiro para um CPF válido e falso para um inválido.
 
-   As regras de calidação de um CPF são as descritas abaixo:
+   As regras de Validação de um CPF são as descritas abaixo:
 
    Para se validar um CPF se calcula o primeiro dígito verificador a partir dos 9 primeiros dígitos do CPF.
    Em seguida, calcula o segundo dígito verificador a partir dos 10 primeiros dígitos do CPF incluindo o primeiro dígito, obtido na primeira parte.
@@ -190,9 +210,9 @@
    Como calcular o primeiro dígito:
 
       Separar os primeiros 9 dígitos do CPF e multiplicar cada um dos números, 
-      desde o primeiro até o nono número, inciar a multiplicação do primeiro em 10 e decrescer em 1 o multiplicador a cada dígido seguinte. 
+      desde o primeiro até o nono número, inciar a multiplicação do primeiro em 10 e decrescer em 1 o multiplicador a cada dígiTo seguinte. 
       Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
-      Considere o resto da divisão para pbter o resultado do dígito. 
+      Considere o resto da divisão para Obter o resultado do dígito. 
          - Se for menor que 2, então o dígito é igual a 0 (Zero).
          - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
 
@@ -205,7 +225,7 @@
       O calculo é semelhante ao do primeiro dígito, a diferença neste caso é que são 10 dígitos a serem multiplicados, incluindo o primeiro verificador. 
       Para multiplicar se inicia em 11 como multiplicador do primeiro número e segue decrescendo até o décimo número. 
       Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
-      Considere o resto da divisão para pbter o resultado do dígito. 
+      Considere o resto da divisão para Obter o resultado do dígito. 
          - Se for menor que 2, então o dígito é igual a 0 (Zero).
          - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
 
@@ -213,77 +233,60 @@
 
    ================= RESPOSTA  =================
 
-      Uma operação de validação de CPF com detalhes!
-
-      Vou criar um exemplo de como implementar essa operação em ProcScript para Uniface:
-      ```proc
-      FUNCTION validar_cpf(strCpf)
-      LOCAL vPrimeiroDigito, vSegundoDigito, i, j, soma1, soma2
-
-      // Remover espaços e caracteres não numéricos
-      strCpf = strCpf =~ '[0-9]'
-
-      // Calcular o primeiro dígito verificador
-      soma1 = 0
-      FOR i = 1 TO 9
-         j = (i * 10) - i + 1
-         soma1 += (strCpf[i] * j)
-      END-FOR
-
-      vPrimeiroDigito = MOD(soma1, 11)
-      IF vPrimeiroDigito < 2 THEN
-         vPrimeiroDigito = 0
-      ELSE
-         vPrimeiroDigito = 11 - vPrimeiroDigito
-      END-IF
-
-      // Calcular o segundo dígito verificador
-      soma2 = 0
-      FOR i = 1 TO 10
-         j = (i * 11) - i + 1
-         soma2 += (strCpf[i] * j)
-      END-FOR
-
-      vSegundoDigito = MOD(soma2, 11)
-      IF vSegundoDigito < 2 THEN
-         vSegundoDigito = 0
-      ELSE
-         vSegundoDigito = 11 - vSegundoDigito
-      END-IF
-
-      // Verificar se os dígitos calculados são iguais aos informados no CPF de entrada
-      RETURN (vPrimeiroDigito == strCpf[10] AND vSegundoDigito == strCpf[11])
-
-      END-FUNCTION
+      Aqui está um exemplo de como você pode criar uma operação em ProcScript para validar um CPF em Uniface:
       ```
-      Essa operação recebe uma string como parâmetro `strCpf` contendo o CPF sem formatação e retorna um booleano indicando se é um CPF válido.
+      proc validate_cpf(vcpf_string)
 
-      A lógica segue as regras de validação descritas:
+         local vcpf_num, vfirst_digit, vsecond_digit, vsum1, vsum2
 
-      1. Calcula o primeiro dígito verificador a partir dos 9 primeiros dígitos do CPF.
-      2. Calcula o segundo dígito verificador a partir dos 10 primeiros dígitos do CPF incluindo o primeiro dígito.
-      3. Verifica se os dois últimos dígitos calculados são iguais aos informados no CPF de entrada.
+         // Convertir stirng para número
+         vcpf_num = $conv_to_number(vcpf_string)
 
-      Para testar, você pode criar um procedimento que chame essa operação e valide alguns exemplos de CPFs:
-      ```proc
-      MAIN()
-      LOCAL vCpf = '12345678909'
-      IF validar_cpf(vCpf) THEN
-         MESSAGEBOX('CPF válido!')
-      ELSE
-         MESSAGEBOX('CPF inválido!')
-      END-IF
+         // Calcula o primeiro dígito verificador
+         vsum1 = 0
+         do i = 1 to 9
+            vsum1 = vsum1 + (i * ($digit(vcpf_num, i - 1)) % 10)
+         enddo
 
-      vCpf = '11111111111'
-      IF validar_cpf(vCpf) THEN
-         MESSAGEBOX('CPF válido!')
-      ELSE
-         MESSAGEBOX('CPF inválido!')
-      END-IF
+         vfirst_digit = 0
+         if vsum1 >= 11 then
+            vfirst_digit = 11 - (vsum1 % 11)
+         else
+            vfirst_digit = 0
+         fi
 
-      END-MAIN()
+         // Calcula o segundo dígito verificador
+         vsum2 = 0
+         do i = 10 to 1
+            vsum2 = vsum2 + (i mod 11) * ($digit(vcpf_num, i - 1))
+         enddo
+
+         vsecond_digit = 0
+         if vsum2 >= 11 then
+            vsecond_digit = 11 - (vsum2 % 11)
+         else
+            vsecond_digit = 0
+         fi
+
+         // Verifica se os dígitos são iguais ao informado no CPF de entrada
+         if $conv_to_number(vcpf_string) == ($conv_to_number(vcpf_string) * 10 + vfirst_digit) * 10 + vsecond_digit then
+            return true
+         else
+            return false
+         fi
+
+      end proc
       ```
-      Espero que isso ajude!
+      Este procedimento assume que o CPF é uma string com 11 caracteres (os 9 primeiros dígitos e os 2 últimos dígitos verificadores). Ele converte a string para um número, 
+      calcula o primeiro dígito verificador utilizando as regras descritas e, em seguida, calcula o segundo dígito verificador. Por fim, ele verifica se os dois últimos 
+      dígitos são iguais ao informado no CPF de entrada.
 
-
-  
+      Para usar este procedimento em Uniface, você pode chamar-o passando a string do CPF como parâmetro, por exemplo:
+      ```
+      local vcpf_string = "12345678900"
+      if validate_cpf(vcpf_string) then
+         print "CPF válido!"
+      else
+         print "CPF inválido!"
+      fi
+      ```
