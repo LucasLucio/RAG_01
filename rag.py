@@ -24,7 +24,7 @@ def simple_rag(directory, question):
         # Carrega documentos do diretório especificado
         docLoad = DirectoryLoader(directory, glob="**/*.pdf", show_progress=True).load()
         # Divide os documentos em pedaços menores
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
         splits = text_splitter.split_documents(docLoad)
 
         if os.path.exists(persistance_directory) and os.path.isdir(persistance_directory):
@@ -43,7 +43,7 @@ def simple_rag(directory, question):
             return
 
     # Configura o recuperador de documentos com base na similaridade
-    retriever = vectorstore.as_retriever(search_type="similarity_score_threshold", search_kwargs={"k": 7, "score_threshold": 0.7})
+    retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 30, "fetch_k": 50})
 
     # Define o prompt do sistema para o modelo de chat
     system_prompt = (
@@ -89,7 +89,48 @@ def main():
         directory = None
     
     # Solicita ao usuário que digite sua pergunta
-    question = input("Digite sua pergunta: \n")
+    question = """"
+    Em Uniface utilizando ProcScript como linguagem de programação, crie uma operação que valide um CPF. 
+   Deve receber uma string como parâmetro de entrada contendo o CPF sem formatação e é necessário que a operação retorne um booleano indicando se é um CPF válido. 
+   Sendo os valores possíveis, verdadeiro para um CPF válido e falso para um inválido.
+
+   As regras de validação de um CPF são as descritas abaixo:
+
+   Para se validar um CPF se calcula o primeiro dígito verificador a partir dos 9 primeiros dígitos do CPF.
+   Em seguida, calcula o segundo dígito verificador a partir dos 10 primeiros dígitos do CPF incluindo o primeiro dígito, obtido na primeira parte.
+
+   Como calcular o primeiro dígito:
+
+      Separar os primeiros 9 dígitos do CPF e multiplicar cada um dos números, 
+      desde o primeiro até o nono número, inciar a multiplicação do primeiro em 10 e decrescer em 1 o multiplicador a cada dígito seguinte. 
+      Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
+      Considere o resto da divisão para obter o resultado do dígito. 
+         - Se for menor que 2, então o dígito é igual a 0 (Zero).
+         - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
+
+   Como calcular o segundo dígito:
+
+   Para  calcular o segundo dígito vamos usar o primeiro digito já calculado. 
+   Vamos montar a mesma tabela de multiplicação usada no cálculo do primeiro dígito. 
+   Só que desta vez usaremos na segunda linha os valores 11,10,9,8,7,6,5,4,3,2 já que estamos incluindo mais um digito no cálculo(o primeiro dígito calculado):
+
+      O calculo é semelhante ao do primeiro dígito, a diferença neste caso é que são 10 dígitos a serem multiplicados, incluindo o primeiro verificador. 
+      Para multiplicar se inicia em 11 como multiplicador do primeiro número e segue decrescendo até o décimo número. 
+      Somar todos os resultados obtidos nas multiplicações e dividir por 11 e considerar como quociente apenas o valor inteiro.
+      Considere o resto da divisão para obter o resultado do dígito. 
+         - Se for menor que 2, então o dígito é igual a 0 (Zero).
+         - Se for maior ou igual a 2, então o dígito é igual a 11 menos o próprio resto da divisão.
+
+   após obter os dois últimos dígitos é necessário verificar se eles são iguais ao informado no CPF de entrada.
+    """
+
+    model = ChatOllama(model="llama3")
+
+    resposta = model.invoke("Defina em uma lista simples com nada além dos itens definidos (contendo apenas o nome do item) quais estruturas e conceitos de linguagem de programação será necessário para responder a seguinte solicitação: \n" + question)
+
+    question = question + " utilizando as seguintes estruturas e conceitos de linguagem de programação: \n" + resposta.content
+
+    #input("Digite sua pergunta: \n")
 
     # Chama a função simple_rag passando o diretório e a pergunta como argumentos
     simple_rag(directory, question)
