@@ -1,9 +1,0 @@
-
-================= PROMPT =================
-  Em Uniface, crie uma operation que processe uma lista de produtos, e os lotes de cada produto em estoque, para cada produto deve ser analisado:
-  - O código do produto
-  - A quantidade de unidades vencidas que não estão mais apropriadas para comercialização
-  Deve ser retornado em uma única struct a quantidade de produtos para cada código que está vencida.
-
-  ================= RESPOSTA =================
-   
