@@ -69,7 +69,7 @@ def load_base():
 
 
 def main():
-    load_base(directory)
+    load_base()
 
 
 if __name__ == "__main__":
