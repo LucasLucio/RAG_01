@@ -1,0 +1,851 @@
+;For Básico
+operation geraSequenciaFibonacci
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        numeric pNrLimite    : IN     
+        string  pDsResultado : OUT 
+        $t_ds_erro$ : OUT
+    endparams
+    variables
+        numeric vNrAnterior, vNrAtual, vNrProximo, vContador
+        string  vSequencia
+    endvariables
+
+    ; Inicializa variáveis
+    vNrAnterior = 0
+    vNrAtual    = 1
+    vContador   = 1
+    vSequencia  = ""
+
+    ; Gera sequência de Fibonacci até o limite informado
+    for vContador to pNrLimite
+        vSequencia +=  "%%vNrAnterior, "
+        vNrProximo = vNrAnterior + vNrAtual
+        vNrAnterior = vNrAtual
+        vNrAtual = vNrProximo
+    endfor
+
+    ; Remove a última vírgula e espaço
+    if $length(vSequencia) > 2
+        vSequencia = substr(vSequencia, 1, len(vSequencia) - 2)
+    endif
+
+    ; Retorna a sequência
+    pDsResultado = vSequencia
+
+    return(0) ;Retorna com sucesso
+end
+
+;For Básico
+operation retornaNumerosPares
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        numeric pNrLimite     : IN     ; Número inteiro limite
+        string  pDsResultado  : OUT    ; Resultado da sequência de pares
+        $t_ds_erro$           : OUT
+    endparams
+
+    variables
+        numeric vContador
+        string  vSequencia
+    endvariables
+
+    ; Inicializa variáveis
+    vSequencia = ""
+
+    ; Percorre de 0 até o limite informado
+    for vContador = 0 to pNrLimite
+        if (vContador % 2 == 0)
+            vSequencia += "%%vContador, "
+        endif
+    endfor
+
+    ; Remove a última vírgula e espaço
+    if len(vSequencia) > 2
+        vSequencia = substr(vSequencia, 1, len(vSequencia) - 2)
+    endif
+
+    ; Retorna a sequência
+    pDsResultado = vSequencia
+
+    return(0) ;Retorna com sucesso
+end
+
+;For em nós de uma struct
+operation buscarCvc
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct pStcCvc	: OUT
+		$t_ds_erro$		: OUT
+	endparams
+	variables
+		struct vStcCvcCoamo, vStcRegistroCvc
+		string vStrContextoErro
+		numeric vLoopIndex
+	endvariables
+
+	;Inicialização de variáveis para tratamento de erros
+	vStrContextoErro = "(%%$componentname%%%.buscarCvc)"
+
+	;Realiza conuslta dos dados em chamda de operation em outro componente
+	activate "CTRAO188".obterCVCCOAMO(vStcCvcCoamo, $t_ds_erro$)
+	if($status < 0) ;Trata erros
+		if($status != -2)
+			$t_ds_erro$ = "Erro ao consultar os dados de cvc. %%vStrContextoErro%%%"
+			return(<G_ERROEXEC>)
+		endIf
+	endIf
+
+	;Repetição com for em nós de uma struct
+	for vLoopIndex = 1 to vStcCvcCoamo->$membercount
+		;Cria struct para guardar dados
+		vStcRegistroCvc = $newstruct
+
+		;Atribui dados a struct
+		vStcRegistroCvc->identificadorParametro                = $newstruct
+		vStcRegistroCvc->identificadorParametro->entidade      = "CTRA_CVC"
+		vStcRegistroCvc->identificadorParametro->atributo      = "ID_CVC"
+		vStcRegistroCvc->identificadorParametro->identificador = vStcCvcCoamo->*{vLoopIndex}->CD_CVC
+
+		vStcRegistroCvc->descricao = vStcCvcCoamo->*{vLoopIndex}->DS_CVC
+		vStcRegistroCvc->tipo      = 6 ; parametro integracao cvc
+
+		;Adiciona struct dos dados a struct do retorno
+		pStcCvc->*{-1} = vStcRegistroCvc
+	endfor
+
+	return (0) ; Finaliza com sucesso
+end
+
+;For com chamada de Local Proc interna
+entry plVerificaPrioridade
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct p_stc_periodo            :in
+		struct p_stc_frequencias_exec   :out
+				 $t_ds_erro$               :out
+	endparams
+	variables
+		numeric  v_nr_x 
+		datetime v_dt_prox_exec
+		struct   v_stc_frequencia, v_stc_frequencia_exec
+		string   v_ds_tempo, v_ds_contexto
+	endvariables	
+	
+	;Inicialização de variáveis para tratamento de erros
+	v_ds_contexto = " (<$componentname>.PL_VERIFICA_PRIORIDADES_EXEC)"
+
+	;Atribui nó vazio a struct
+	v_stc_frequencia_exec->frequencias = $newStruct
+
+	;Processa for em nós da struct
+	for v_nr_x = 1 to p_stc_periodo->frequencias->$memberCount
+		;Obtem objeto deferente a posição percorrida do for
+		v_stc_frequencia = p_stc_periodo->frequencias->*{v_nr_x}
+		
+		;valida dados de nó
+		if(v_stc_frequencia->ultimaExecucao != "")
+			
+			;Chama execução de Local Proc para tratamento de dados
+			call PL_CALCULA_TEMPO(v_stc_frequencia->intervalo, v_ds_tempo, $t_ds_erro$)
+			if ($status < 0)
+					$t_ds_erro$ = "Ocorreu um erro ao calcular o tempo de intervalo de execução da prioridade. (%%v_ds_contexto%%%) "
+					return(<G_ERROEXEC>)
+			endif
+
+			;Define valores a variáveis
+			v_dt_prox_exec = $datim(v_stc_frequencia->ultimaExecucao) + $clock(v_ds_tempo)
+			if(v_dt_prox_exec <= $datim)
+				v_stc_frequencia_exec->frequencias->*{-1} = v_stc_frequencia
+			endif
+		else
+			;Define valores a variáveis
+			v_stc_frequencia->ultimaExecucao = $datim
+		endif
+	endfor
+	
+	;Define a retorno os dados de retorno
+	p_stc_frequencias_exec = v_stc_frequencia_exec
+	return(0) ; Retorna com sucesso
+
+end
+
+;For em lista basico
+operation valrepSituacaoReserva
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_ls_valrep	: out
+		$t_ds_erro$			: out
+	endparams
+	variables
+		string v_ls_item, v_ls_hit
+	endvariables
+	v_ls_hit = $valrep("st_reserva.ctra_resordcarr") ;Atribui os dados a lista
+	forlist v_ls_item in v_ls_hit ;Processa for nos itens da lista
+		putitem/id p_ls_valrep, $idpart(v_ls_item), "%%$idpart(v_ls_item)%%% - %%$valuepart(v_ls_item)%%%" ;Atribui dados a uma nova lista
+	endfor
+	p_ls_valrep = "=Todas%%p_ls_valrep%%%"	; atribui retorno de dados
+	return(0) ;Retorna com sucesso
+end
+
+;For em entidade
+operation valrepTipoReferencia
+	params
+		string p_ls_valrep	: out
+		$t_ds_erro$			: out
+	endparams
+	variables
+		string v_ds_contexto
+	endvariables
+
+	;Inicialização de variáveis para tratamento de erro
+	v_ds_contexto = "<$componentname>.valrep_tp_referencia_2"
+	
+	;Chamada de operation no mesmo componente
+	activate $componentname.valrep_tp_referencia("gndb_dropdown", $t_ds_erro$)
+	if ($status < 0) ;Validação de erros da chamada
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<g_erroexec>)
+	endif
+
+	;For em entidade para processamento dos registros
+	forentity "gndb_dropdown"
+
+		;Atribuição dos dados do registro em lista
+		putitem p_ls_valrep, -1, "%%tp_consulta.gndb_dropdown%%%=%%tp_consulta.gndb_dropdown%%% - %%ds_dropdown.gndb_dropdown%%%"
+	endfor
+
+	return(0) ;Retorno com sucesso
+end
+
+;For em entidade juntamente com for com lista
+Entry plProcessarReservaAlimentos
+	params ;Parâmetros de entrada e saída 
+	;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_ls_input		: IN
+		string p_ls_output	: OUT
+		       $t_ds_erro$  : OUT
+	endparams	
+	Variables
+		Date v_dt_processo
+		String v_ls_resordcarr, v_occ_resordcarr
+		Handle v_instancia_CFREO047
+		Struct v_stc_input, v_stc_output, v_stc_ofertas, v_stc_ofertaspend, v_stc_oferta
+		Numeric v_nr_pos
+		Time v_hr_expiracao, v_hr_processamento
+	EndVariables
+
+	;Inicializa vairiáveis da função
+	v_dt_processo = $date
+	v_hr_expiracao   = $item("hr_expiracao", p_ls_input)
+	v_hr_processamento = $clock
+
+	;Cria nova instância para chamda de operation em outro componente
+	newinstance "CFREO047", v_instancia_CFREO047, "Transaction=TRUE"
+
+	;Inicializa variáveis 
+	$t_tp_operador$   = 1
+	$t_cd_operador$   = 1
+	v_stc_ofertas     = $newstruct
+	v_stc_ofertaspend = $newstruct
+
+	;Realiza consulta ao banco de dados
+	clear/e "ctra_resordcarr"
+	dt_embarque.ctra_resordcarr = "%%v_dt_processo"
+	st_reserva.ctra_resordcarr  = "2" ; Reservado
+	tp_segcarga.ctra_resordcarr = "1" ;alimentos
+	retrieve/e "ctra_resordcarr"
+
+	;Tratamento de erros da consulta
+	if ($status < 0 & $status != -2)
+		deleteinstance v_instancia_CFREO047
+		$t_ds_erro$ = "Falha ao ler dados da entidade CTRA_RESORDCARR com status %%$status"
+		return (<G_ERROEXEC>)
+	endif
+
+	;Tratamento de erros para retorno vazio da consulta
+	if ($status = -2)
+		deleteinstance v_instancia_CFREO047
+		clear/e "ctra_resordcarr"	
+		return (0)
+	endif
+
+	Posiciona registro na primeira ocorrencia encontrata da entidade consultada
+	setocc "ctra_resordcarr", -1
+	sort "ctra_resordcarr", "dt_trscria.ctra_resordcarr" ; Ordena registros pela data de criação, em ordme crescente
+
+	;For em entidade consultada para processar registro a registro
+	forentity "ctra_resordcarr"
+
+		;Atribui dados da entidade a uma lista
+		v_occ_resordcarr = ""
+		putitem/id v_occ_resordcarr, "id_motorista", id_motorista.ctra_resordcarr
+		putitem/id v_occ_resordcarr, "nr_versaoveic", nr_versaoveic.ctra_resordcarr
+		putitem/id v_occ_resordcarr, "nr_ofertafrt", nr_ofertafrt.ctra_resordcarr
+		putitem/id v_occ_resordcarr, "cd_transp", cd_transp.ctra_resordcarr
+		putitem v_ls_resordcarr, -1, v_occ_resordcarr
+
+	endfor
+
+	;Limpa entidade consultada
+	clear/e "ctra_resordcarr"
+
+	;For em lista criada com os dados dos registros consultados
+	forlist v_occ_resordcarr in v_ls_resordcarr
+
+		;Atribui dados a uma struct
+		v_stc_input                = $newstruct
+		v_stc_input->id_motorista  = $item("id_motorista", v_occ_resordcarr)
+		v_stc_input->nr_versaoveic = $item("nr_versaoveic", v_occ_resordcarr)
+		v_stc_input->nr_ofertafrt  = $item("nr_ofertafrt", v_occ_resordcarr)
+		v_stc_input->tp_operador   = $t_tp_operador$
+		v_stc_input->cd_operador   = $t_cd_operador$
+		v_stc_input->in_commit     = <G_TRUE>
+
+		;Realiza chamada a uma operation em outro componente chamando pela nova instancia criada acima
+		v_instancia_CFREO047->atualizarOferta(v_stc_input, v_stc_output, $t_ds_erro$)
+		if ($status < 0) ;Tratamento de erros
+			if ($status != <G_ERROEXEC>)
+				call PL_ERRO_CMDMSG ($procerrorcontext)
+			endif			
+		else ;Caso não tenha erro nenhum processa os dados
+			if (v_stc_output->oferta->st_oferta = 6) ; Confirmada
+				v_stc_oferta            = v_stc_output->oferta
+				v_stc_oferta->cd_transp = $item("cd_transp", v_occ_resordcarr)
+				v_stc_ofertas->*{-1}    = v_stc_oferta
+			elseif (v_stc_output->oferta->st_oferta = 1) ; Pendente
+				v_stc_oferta             = v_stc_output->oferta
+				v_stc_oferta->cd_transp  = $item("cd_transp", v_occ_resordcarr)
+				v_stc_ofertaspend->*{-1} = v_stc_oferta
+			endif
+		endif
+	endfor
+
+	;Percorre registros atualizados na struct criada, utilizando um while 
+	v_nr_pos     = 1
+	v_stc_oferta = v_stc_ofertas->*{v_nr_pos}
+	while (v_stc_oferta->$membercount > 0)
+
+		;Chama local proc para processar registro da struct
+		call PL_PROCESSAR_ITEMRES_ALIMENTOS(v_stc_oferta, v_dt_processo, v_hr_expiracao, v_hr_processamento)
+		;#include LIB_COAMO:G_VLD_ACTIVATE ; Validação de erro com biblioteca 
+		if ($status < 0)
+			if ($status != <G_erroexec>)
+				call pl_erro_cmdmsg($procerrorcontext)
+			endif			
+			deleteinstance v_instancia_CFREO047
+			return(<G_erroexec>)
+		endif
+		v_nr_pos     = v_nr_pos + 1
+		v_stc_oferta = v_stc_ofertas->*{v_nr_pos}
+	endwhile	
+
+	;Deleta instância criada anteriormente
+	deleteinstance v_instancia_CFREO047
+	 
+	return (0) ; Retorna com sucesso
+end
+
+;For em lista com identificador 
+operation processaListaCidades
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        $t_ds_erro$         : OUT
+    endparams
+
+    variables
+        string vLista
+        string vIdItem
+        string vValorItem
+        string vIndice
+        string vResultado
+    endvariables
+
+    vLista = "A=Atenas;R=Roma;Sy=Siracusa;P=Pompéia;Sp=Esparta"
+    vResultado = ""
+
+	;For em lista com identificador
+    forlist/id vIdItem, vValorItem, vIndice in vLista 
+		putmess "Processando item %%vIndice%% - Id: %%vIdItem%%%, Valor: %%vValorItem%%%" ;Envia mensagem de processamento
+    endfor
+
+    return(0) ;Retorno com sucesso
+end
+
+;For com lista utilizando identificador de item
+operation gravaMotorista
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		$t_tp_operador$            : in
+		$t_cd_operador$            : in
+		String p_ls_input          : in
+		$t_ds_erro$                : out
+	endparams
+	variables
+		string v_ds_contexto, v_ls_occpessoa, v_ls_occpessoafis, v_ls_occmotorista, v_ls_param, v_ls_hitfone, v_ls_occfone
+		numeric v_tp_manutencao, v_usuario_lfre
+		boolean v_in_possui_pessoa, v_in_grava_pessoa, v_in_possui_pessoafis, v_in_grava_pessoafis, v_in_possui_motorista, v_in_grava_motorista
+		string v_nr_cpfmot, v_nm_pessoa, v_tp_sexo, v_nr_cnh, v_nr_rg
+		numeric v_cd_estcivil, v_cd_ddd, v_nr_fone, v_nr_sequencia
+		String v_ds_chave, v_ds_valor
+	endvariables  
+
+	;Inicialização para tratamento de erro  
+	v_ds_contexto = "<$componentname>.GRAVA_MOTORISTA_COMPLETO"
+	
+	;Incialização de variáveis para processamento
+	v_nr_cpfmot       = $item("nr_cpfmot", p_ls_input)
+	v_nm_pessoa       = $item("nm_pessoa", p_ls_input)
+	v_tp_sexo         = $item("tp_sexo", p_ls_input)
+	v_nr_cnh          = $item("nr_cnh", p_ls_input)
+	v_nr_rg           = $item("nr_rg", p_ls_input)
+	v_cd_estcivil     = $item("cd_estcivil", p_ls_input)
+	v_cd_ddd          = $item("cd_ddd", p_ls_input)
+	v_nr_fone         = $item("nr_fone", p_ls_input)
+	v_nr_sequencia    = $item("nr_sequencia", p_ls_input)
+	v_usuario_lfre    = $item("v_usuario_lfre", p_ls_input) ;0 = Não é usuário LFRE, 1 = É usuário LFRE
+
+	;Inicialização de variável
+	if(v_usuario_lfre = "")
+		v_usuario_lfre = 0 ;DEFAULT = 0; 
+	endif
+
+	;Validação de campos obrigatórios
+	if ($t_tp_operador$ = "")
+		$t_ds_erro$ = "Tipo do operador é obrigatório (%%v_ds_contexto%%%)."
+		return(<g_erroexec>)
+	endif
+	if ($t_cd_operador$ = "")
+		$t_ds_erro$ = "Código do operador é obrigatório (%%v_ds_contexto%%%)."
+		return(<g_erroexec>)
+	endif
+	if (v_nr_cpfmot = "")
+		$t_ds_erro$ = "CPF do motorista é obrigatório (%%v_ds_contexto%%%)."
+		return(<g_erroexec>)
+	endif
+	
+	;Validação de dados obrigatórios
+	if(v_usuario_lfre = 0)
+		if (v_nr_cnh = "")
+			$t_ds_erro$ = "Carteira nacional de habilitação (C.N.H) do motorista é obrigatório (%%v_ds_contexto%%%)."
+			return(<g_erroexec>)
+		endif
+		if (v_nr_rg = "")
+			$t_ds_erro$ = "R.G do motorista é obrigatório (%%v_ds_contexto%%%)"
+			return(<g_erroexec>)
+		endif
+		if (v_cd_ddd = "")
+			$t_ds_erro$ = "Código de área do celular do motorista é obrigatório (%%v_ds_contexto%%%)."
+			return(<g_erroexec>)
+		endif
+		if (v_nr_fone = "")
+			$t_ds_erro$ = "Número do celular do motorista é obrigatório (%%v_ds_contexto%%%)."
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Chamada de Local Proc para validação de dado
+	call pl_vld_celular(v_cd_ddd, v_nr_fone)
+	if ($status < 0) ;Validação de erro da chamada
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<G_erroexec>)
+	endif
+	
+
+	; Consulta de dado em operation de outro componente
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	activate "gpeso050".obtem_occ_pk_serro("gpes_pessoa", v_ls_param, v_in_possui_pessoa, v_ls_occpessoa, $t_ds_erro$)
+	if ($status < 0) ;Validação de erro
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		return(<g_erroexec>)
+	endif
+
+	;Valida dados para processamento da gravação
+	if (v_ls_occpessoa = "" | (v_nm_pessoa != $item("nm_pessoa", v_ls_occpessoa) & v_usuario_lfre = 0))
+		putitem/id v_ls_occpessoa, "nm_pessoa", v_nm_pessoa
+		v_in_grava_pessoa = <g_true>
+	endif
+
+	;For com lista utilizando identificador de item
+	forlist /id v_ds_chave, v_ds_valor in p_ls_input
+		;Processamento dos dados do registro
+		selectcase $lowercase(v_ds_chave)
+			case "dt_nascimento"
+				if ($date(v_ds_valor) != $date($item(v_ds_chave, v_ls_occpessoa)))
+					putitem/id v_ls_occpessoa, v_ds_chave, $date(v_ds_valor)
+					v_in_grava_pessoa = <g_true>
+				endif
+			case "ds_endereco", "nr_endereco", "ds_bairro", "cd_cep", "cd_municipio"
+				v_ds_valor = $uppercase(v_ds_valor)
+				if (v_ds_valor != $item(v_ds_chave, v_ls_occpessoa))
+					putitem/id v_ls_occpessoa, v_ds_chave, v_ds_valor
+					v_in_grava_pessoa = <g_true>
+				endif
+		endselectcase
+	endfor
+
+	;Gravação dos dados de pessoa
+	if (v_in_grava_pessoa)
+		putitem/id v_ls_occpessoa, "tp_pessoa", 1 ; física
+		putitem/id v_ls_occpessoa, "cd_operador", $t_cd_operador$
+		putitem/id v_ls_occpessoa, "nr_cpfcnpj", v_nr_cpfmot
+		activate "gpeso019".valida_pessoa(v_ls_occpessoa, $t_ds_erro$)
+		if ($status < 0) ; Validação de erro
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			return(<g_erroexec>)
+		endif
+	endif
+		
+	Preparação de dados para gravação de pessoa física
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	activate "gpeso050".obtem_occ_pk_serro("gpes_pessoafis", v_ls_param, v_in_possui_pessoafis, v_ls_occpessoafis, $t_ds_erro$)
+	if ($status < 0) ;Validação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		return(<g_erroexec>)
+	endif
+
+	;Valida dados para gravação
+	if (v_ls_occpessoafis = "" | v_nr_cnh != $item("nr_cnh", v_ls_occpessoafis) | v_nr_rg != $item("nr_rg", v_ls_occpessoafis))
+		putitem/id v_ls_occpessoafis, "nr_cnh", v_nr_cnh
+		putitem/id v_ls_occpessoafis, "nr_rg", v_nr_rg
+		v_in_grava_pessoafis = <g_true>
+	endif
+
+	;For com lista utilizando identificador de item
+	forlist /id v_ds_chave, v_ds_valor in p_ls_input
+		;Processamewnto do dado para gravação
+		v_ds_valor = $uppercase(v_ds_valor)
+		if ($lowercase(v_ds_chave) = "cd_ufrg" & v_ds_valor != $item(v_ds_chave, v_ls_occpessoafis))
+			putitem/id v_ls_occpessoafis, v_ds_chave, v_ds_valor
+			v_in_grava_pessoafis = <g_true>
+		endif
+	endfor
+
+	;Gravação do dado de pessoa física
+	if (v_in_grava_pessoafis)
+		putitem/id v_ls_occpessoafis, "cd_operador", $t_cd_operador$
+		putitem/id v_ls_occpessoafis, "nr_cpfcnpj", v_nr_cpfmot
+		activate "gpeso043".valida_pessoafis(v_ls_occpessoafis, $t_ds_erro$)
+		if ($status < 0) ;Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			return(<g_erroexec>)
+		endif
+		call pl_vld_cnhmotorista(v_nr_cpfmot, v_nr_cnh)
+		if ($status < 0)
+			done
+		endif
+	endif
+	
+	;Validação dos dados de motorista
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpf", v_nr_cpfmot
+	activate "gpeso050".obtem_occ_pk_serro("gpes_motorista", v_ls_param, v_in_possui_motorista, v_ls_occmotorista, $t_ds_erro$)
+	if ($status < 0) ;Verificação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		return(<g_erroexec>)
+	endif
+	putitem/id v_ls_occmotorista, "nr_cpf", v_nr_cpfmot
+	putitem/id v_ls_occmotorista, "in_inativo", <g_false>
+	putitem/id v_ls_occmotorista, "cd_operador", $t_cd_operador$    
+	if (!v_in_possui_motorista)
+		v_in_grava_motorista = <G_TRUE>
+	endif
+
+	;For com lista utilizando identificador de item
+	forlist /id v_ds_chave, v_ds_valor in p_ls_input
+		;Processamento do dado
+		v_ds_valor = $uppercase(v_ds_valor)
+		if ($lowercase(v_ds_chave) = "nr_cartaoped" & v_ds_valor != $item(v_ds_chave, v_ls_occmotorista))
+			putitem/id v_ls_occmotorista, v_ds_chave, v_ds_valor
+			v_in_grava_motorista = <g_true>
+		endif
+	endfor
+	
+	;Gravação do registro de pessoa
+	if (v_in_grava_pessoa)
+		if (!v_in_possui_pessoa)
+			v_tp_manutencao = 1
+		else
+			v_tp_manutencao = 2
+		endif      
+		;Chamada de operation em outro componente para gravação   
+		activate "gpeso019".grava_pessoa(v_tp_manutencao, v_ls_occpessoa, $t_ds_erro$)
+		if ($status < 0) ; Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Gravação do registro de pessoa física
+	if (v_in_grava_pessoafis)
+		if (!v_in_possui_pessoafis)
+			v_tp_manutencao = 1
+		else
+			v_tp_manutencao = 2
+		endif        
+		;Chamada de operation em outro componente para gravação   
+		activate "gpeso043".grava_pessoafis(v_tp_manutencao, v_ls_occpessoafis, $t_ds_erro$)
+		if ($status < 0) ;Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Gravação de registro do motorista
+	if (v_in_grava_motorista)
+		if (!v_in_possui_motorista)
+			v_tp_manutencao = 1
+		else
+			v_tp_manutencao = 2
+		endif
+		;Chamada de operation em outro componente para gravação   
+		activate "gpeso055".grava_motorista(v_tp_manutencao, v_ls_occmotorista, $t_ds_erro$)
+		if ($status < 0);Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Verificação de informações para registro de contato do motorista
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	putitem/id v_ls_param, "nr_sequencia", v_nr_sequencia
+	if (v_nr_cpfmot != "" & v_nr_sequencia != "")
+		;Recupera o celular já existente, consultando em operation de outro componente
+		activate "gpeso050".obtem_occ_pk("gpes_fone", v_ls_param, v_ls_occfone, $t_ds_erro$)
+		if ($status < 0) ; Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+
+		;Obtenção dos valores
+		putitem/id v_ls_occfone, "tp_telefone", 3 ; celular do motorista
+		putitem/id v_ls_occfone, "cd_ddd", v_cd_ddd
+		putitem/id v_ls_occfone, "nr_fone", v_nr_fone
+		putitem/id v_ls_occfone, "in_smscargaon", <g_true>
+		putitem/id v_ls_occfone, "tp_operador", $t_tp_operador$
+		putitem/id v_ls_occfone, "cd_operador", $t_cd_operador$
+		v_tp_manutencao = 2 ; alteração
+	else
+		;Caso negativo do condicional
+		putitem/id v_ls_param, "tp_telefone", 3 ; celular do motorista
+		putitem/id v_ls_param, "cd_ddd", v_cd_ddd
+		putitem/id v_ls_param, "nr_fone", v_nr_fone
+		activate "gpeso050".obtem_occ_retr_lim("gpes_fone", v_ls_param, 1, v_ls_occfone, $t_ds_erro$)
+		if ($status < 0);Validação de erro da chamada
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+		;Obtem o primeiro registro da lista
+		v_ls_occfone = $itemnr(1, v_ls_occfone)        
+		if (v_ls_occfone != "")
+			putitem/id v_ls_occfone, "in_smscargaon", <g_true>
+			v_tp_manutencao = 2 ; alteração
+		else
+			putitem/id v_ls_occfone, "nr_cpfcnpj", v_nr_cpfmot
+			putitem/id v_ls_occfone, "tp_telefone", 3 ; celular do motorista
+			putitem/id v_ls_occfone, "cd_ddd", v_cd_ddd
+			putitem/id v_ls_occfone, "nr_fone", v_nr_fone
+			putitem/id v_ls_occfone, "in_smscargaon", <g_true>
+
+			v_tp_manutencao = 1 ; inclusão
+		endif
+		putitem/id v_ls_occfone, "tp_operador", $t_tp_operador$
+		putitem/id v_ls_occfone, "cd_operador", $t_cd_operador$
+	endif
+
+	;Chamada de operation em outro componente para gravação   
+	activate "gpeso059".grava_fone(v_tp_manutencao, v_ls_occfone, $t_ds_erro$)
+	if ($status < 0) ;Validação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		$t_ds_erro$ = "%%$t_ds_erro$%%% %%v_nr_sequencia%%% (%%v_ds_contexto%%%)"
+		rollback
+		return(<g_erroexec>)
+	endif
+	
+	;Consulta os dados de contato do motorista
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	putitem/id v_ls_param, "tp_telefone", 3 ; celular do motorista    
+	putitem/id v_ls_param, "in_smscargaon", <g_true> ; autoriza envio de mensagem por celular
+	activate "gpeso050".obtem_occ_retr("gpes_fone", v_ls_param, v_ls_hitfone, $t_ds_erro$)
+	if ($status < 0) ;Validação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		rollback
+		return(<g_erroexec>)
+	endif
+	;Processa registro em while para desmarcar atributo
+	while ($itemnr(1, v_ls_hitfone) != "")
+		v_ls_occfone = $itemnr(1, v_ls_hitfone)
+		if ($item("cd_ddd", v_ls_occfone) != v_cd_ddd | $item("nr_fone", V_ls_occfone) != v_nr_fone)
+			putitem/id v_ls_occfone, "in_smscargaon", <g_false>
+			putitem/id v_ls_occfone, "cd_operador", $t_cd_operador$
+
+			;Chamada de operation em outro componente para gravação   
+			activate "gpeso059".grava_fone(2, v_ls_occfone, $t_ds_erro$)
+			if ($status < 0) ;Validação de erros
+				if ($status != <g_erroexec>)
+					call pl_erro_comando($procerrorcontext)
+				endif
+				rollback
+				return(<g_erroexec>)
+			endif
+		endif
+		delitem v_ls_hitfone, 1 ;Remove registro da lista de conulsta realizada
+	endwhile        
+	commit ;Realiza commit de transações
+	return(0) ;Retorna com sucesso
+end
+
+;For em estrututa da struct
+operation liberarViagem
+	Params;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		$t_tp_operador$    : in
+		$t_cd_operador$    : in
+		Struct p_stc_in    : in  
+		$t_ds_erro$        : out
+	EndParams
+	variables
+		numeric x, y, v_tp_creditoped, v_cd_modulo, v_cd_unidade, v_nr_procfat, v_id_veiculo, v_nr_solictransp
+		numeric v_nr_tentativas, v_id_viagemped
+		boolean v_in_libsemcompra
+		string v_ls_param, v_ls_doctocarga, v_nm_componente, v_ls_occ
+		struct v_stc_item, v_stc_param, v_stc_origemped
+	endvariables
+
+	;Try catch para tratamento de falhas
+	try
+
+		;Atribuição de valores a variáveis
+		v_nm_componente       = pl_extrair_dados_struct("nm_componente", p_stc_in)
+		v_tp_creditoped       = pl_extrair_dados_struct("tp_creditoped", p_stc_in)
+		v_in_libsemcompra     = pl_extrair_dados_struct("in_libsemcompra", p_stc_in)
+
+		;Validação de dados obrigatórios
+		if (v_nm_componente   = "") throw -99999, "Nome do componente é um parâmetro obrigatório."
+		if (v_tp_creditoped   = "") throw -99999, "Tipo de crédito do vale pedágio é um parâmetro obrigatório."
+		if (v_in_libsemcompra = "") throw -99999, "Indicador de liberação da viagem sem a compra do vale pedágio é um parâmetro obrigatório."
+		if ($t_tp_operador$   = "") throw -99999, "Tipo do operador é um parâmetro obrigatório"
+		if ($t_tp_operador$   = "") throw -99999, "Código do operador é um parâmetro obrigatório"
+
+		;Chamada de local proc para validação de estrutura
+		if (!pl_validar_struct(p_stc_in, "nf")) ;Considicional para validação de erro
+			throw -99999, "Estrutura de dados das notas fiscais não encontrada."
+		else ;Caso não tenha erro
+
+			;Processamento de laço em itens da struct
+			for x = 1 to p_stc_in->nf->$collsize
+
+				;Atribuição de dados a variáveis
+				v_cd_modulo  	 	 = pl_extrair_dados_struct("cd_modulo", 	 p_stc_in->nf{x})
+				v_cd_unidade	 	 = pl_extrair_dados_struct("cd_unidade", 	 p_stc_in->nf{x})
+				v_nr_procfat 	 	 = pl_extrair_dados_struct("nr_procfat", 	 p_stc_in->nf{x})
+				v_id_veiculo 	 	 = pl_extrair_dados_struct("id_veiculo", 	 p_stc_in->nf{x})
+				v_nr_solictransp 	 = pl_extrair_dados_struct("nr_solictransp", p_stc_in->nf{x})
+
+				;Validação de dados obrigatórios
+				if (v_cd_modulo   	 = "") throw -99999, "Código do módulo é um parâmetro obrigatório."
+				if (v_cd_unidade   	 = "") throw -99999, "Código da unidade é um parâmetro obrigatório."
+				if (v_nr_procfat 	 = "") throw -99999, "Número do processo de faturamento é um parâmetro obrigatório."
+				if (v_id_veiculo   	 = "") throw -99999, "Identificador do veículo é um parâmetro obrigatório."
+				if (v_nr_solictransp = "") throw -99999, "Número da solicitação de transporte é um parâmetro obrigatório."
+
+				;Condicional para validação de dados recuperados
+				if (v_cd_modulo > 0 & v_cd_unidade > 0 & v_nr_procfat > 0 & v_nr_solictransp > 0)
+				
+					;Validação e consulta de dados
+					v_nr_tentativas = 0
+					repeat
+						sleep 2000
+						v_ls_param = ""
+						putitem/id v_ls_param, "cd_modfat",  	 v_cd_modulo
+						putitem/id v_ls_param, "cd_unidfat", 	 v_cd_unidade
+						putitem/id v_ls_param, "nr_procfat", 	 v_nr_procfat
+						putitem/id v_ls_param, "nr_solictransp", v_nr_solictransp
+						activate "ctrao201".obtem_occ_retr("ctra_doctocarga", v_ls_param, v_ls_doctocarga, $t_ds_erro$)
+						#include LIB_COAMO:G_THROW_T_DS_ERRO
+						v_nr_tentativas += 1 
+					until (v_ls_doctocarga != "" | v_nr_tentativas = 10)
+
+					;Validação de retorno de dados da consulta
+					if (v_ls_doctocarga = "")
+						throw -99999, "Não foi encontrado o vínculo da nota fiscal com a carga da viagem do vale pedágio. (CTRA_DOCTOCARGA)."
+					endif
+	
+					;For em lista retornada
+					forlist v_ls_occ in v_ls_doctocarga
+						v_stc_param = $newstruct
+						v_stc_item  = $newstruct
+						v_stc_item->nr_solictransp 	  = v_nr_solictransp
+						v_stc_item->nr_carga       	  = pl_extrair_dados_lista("nr_carga", v_ls_occ)
+						v_stc_param->programacao{-1}  = v_stc_item
+
+						;Chamada de operation em outro componente para aplicação de regra
+						activate "ctrao322".opObterOrigemViagem(v_stc_param, v_stc_origemped, $t_ds_erro$)
+						#include LIB_COAMO:G_THROW_T_DS_ERRO ;VAlidação de erro com biblioteca
+
+						;Validação de estrutura da struct com Local Proc
+						if (!pl_validar_struct(v_stc_origemped, "OCC"))
+							throw -99999, "Registro da origem da viagem do vale pedágio não encontrado.(CTRA_ORIGEMPED)."
+						else ;Caso sem erro
+
+						    ;For em estrututa da struct
+							for y = 1 to v_stc_origemped->OCC->$collsize
+
+								;Atribuição de dados a variáveis
+								v_id_viagemped = pl_extrair_dados_struct("ID_VIAGEMPED", v_stc_origemped->OCC{y})
+								v_stc_param = $newstruct
+								v_stc_param->nm_componente   = v_nm_componente
+								v_stc_param->in_libsemcompra = v_in_libsemcompra
+
+								;Chamada de Local Proc para aplicação de regra
+								call plLiberarViagem("", "", v_id_viagemped, v_tp_creditoped, v_stc_param)
+							endfor
+						endif
+					endfor
+				endif
+			endfor
+		endif
+	catch
+		;Lançamento de exceção
+		call PL_EXCECAO_MSG($procerrorcontext)
+		return (<G_ERROEXEC>) ;Retorno com erro
+	endtry
+	
+	return (0) ;Retorno com sucesso
+end

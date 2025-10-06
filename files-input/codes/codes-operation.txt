@@ -1,0 +1,518 @@
+;Operation Básica
+operation exemploSoma
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrPrimeiro     : IN
+		numeric pNrSegundo      : IN
+		numeric pNrResultado    : OUT
+		$t_ds_erro$	            : OUT
+	endParams
+
+	pNrResultado = pNrPrimeiro + pNrSegundo
+
+	;Tratamento de erro 
+	if ($status < 0)
+		$t_ds_erro$ = "Falha ao somar números"
+		;Retorna com Falha
+		return(-99)
+	endIf
+	
+	;Retorna operação com sucesso
+	return(0)
+
+end
+
+;Operation basica com variáveis
+operation exemploNumeroMaior
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrPrimeiro     : IN
+		numeric pNrSegundo      : IN
+		string  pStrResultado   : OUT
+		$t_ds_erro$	            : OUT
+	endParams
+	variables
+		string vStrResultado
+	endvariables
+
+	;Trata entradas
+	if(pNrPrimeiro = "" | pNrSegundo = "")
+		$t_ds_erro$ = "É necessário informar os valores"
+		;Retorna com Falha
+		return(-99)
+	endif
+	
+	if(pNrPrimeiro = pNrSegundo)
+		vStrResultado = "Os números são iguais"
+	endif
+
+	if(pNrPrimeiro > pNrSegundo)
+		vStrResultado = "O numero %%pNrPrimeiro%%% é maior"
+	else
+		vStrResultado = "O numero %%pNrSegundo%%% é maior"
+	endif
+
+	;Atribui saída
+	pStrResultado = vStrResultado
+
+	
+	;Retorna operação com sucesso
+	return(0)
+
+end
+
+;Operation que chama outras operation em componentes distintos
+operation sincronizarSolicitacoes
+	params
+		$t_ds_erro$        : OUT
+	endparams
+	variables
+		struct vStcOportunidades
+		string vStrContextoErro
+		boolean vInComparacaoAtiva
+	endvariables
+
+	;Configurações iniciais para tratamentos de erro
+	vStrContextoErro = "(%%$componentname%%%.sincronizarSolicitacoes)"
+	$t_cd_operador$ = 1
+	
+	;Chama operation em componente CTRAO056
+	activate "CTRAO056".buscaSolicitacoes(1, $datim, vStcOportunidades, $t_ds_erro$)
+	;Tratamento de erro
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endif
+
+		return (<G_ERROEXEC>)
+	endif
+
+	;Chama operation em componente LFREO050
+	activate "LFREO050".opBuscarValorChaveComparacao(vInComparacaoAtiva)
+	if (vInComparacaoAtiva)
+		;Chamada de função local do próprio componente
+		call plProcessarComComparacao(vStcOportunidades)
+	else
+		;Chamada de função local do próprio componente
+		call plProcessarSemComparacao(vStcOportunidades)
+	endif
+	return (0)
+end ; sincronizarSolicitacoes
+
+
+;Operation com entradas e variaveis struct
+operation enviaEmail
+	params
+		Struct pStcInput			: IN
+		Struct pStcOutput			: OUT
+		Struct pStcOutputError	    : OUT
+	endParams
+	variables
+		String	vStrContextoErro
+		Struct	vStcTemp
+	endVariables
+
+	;Configurações iniciais para tratamentos de erro
+	vStrContextoErro	= "(%%$componentname%%%.enviaEmail)"
+	vStcTemp				= ""
+	pStcOutput			= ""
+	pStcOutputError	= ""
+
+	;Criação de uma struct
+	vStcTemp->"%%(pStcInput->versao)%%%"	= $newStruct
+	vStcTemp->"%%(pStcInput->versao)%%%"->*{-1}	= pStcInput->*
+	vStcTemp->"%%(pStcInput->versao)%%%"->*{-1}	= pStcInput->payload->*
+	vStcTemp->"%%(pStcInput->versao)%%%"->payload->$parent	= ""
+	;Chamada de uma função local do componente
+	call plValidaParametros(vStcTemp,pStcOutputError)
+	;Tratamento de erros
+	if ($status < 0)
+		if ($status = <g_erroexec>)
+			call plErroWeb("", "", "", vStrContextoErro, pStcOutputError)
+		else
+			call pl_erro_cmdmsg($procerrorcontext)
+			call plErroWeb(500, $t_ds_erro$, "", vStrContextoErro, pStcOutputError)
+		endif
+		return(<g_erroexec>)
+	endif
+
+	;Reinicialização de uma variável struct
+	vStcTemp	= ""
+
+	;Switch/case para verificação de versão 
+	selectCase pStcInput->versao 
+		case	"v1" ;Vericficação do case da variável
+
+			;Chamada de operação a ser executada
+			call plEnviaEmail_v1 (pStcInPut,pStcOutput,pStcOutputError)
+			;Tratamento de erros
+			if ($status < 0)
+				if ($status = <g_erroexec>)
+					call plErroWeb("", "", "", vStrContextoErro, pStcOutputError)
+				else
+					call pl_erro_cmdmsg($procerrorcontext)
+					call plErroWeb(500, $t_ds_erro$, "", vStrContextoErro, pStcOutputError)
+				endif
+				return(<g_erroexec>)
+			endif
+
+		elseCase ; Caso else do switch/case
+			call plErroWeb(500, "Versão(versao) é um parâmetro obrigatório.", "", vStrContextoErro, pStcOutputError)
+			return(<g_erroexec>)
+	endSelectCase
+
+	;Limpeza de variáveis para finalização
+	vStrContextoErro	= ""
+	vStcTemp				= ""
+	pStcOutputError	= ""
+
+	return(0) ;Retorno da operation com sucesso
+
+end ;enviaEmail
+
+;Operation Simples com enstradas de lista
+operation listarTiposVeiculo
+	params;Definição de parâmetros
+		       $t_cd_operador$    : IN
+		string p_ls_input         : IN
+		struct p_stc_output       : OUT
+		       $t_ds_erro$        : OUT
+	endparams
+	variables ;Definição de variáveis
+		struct  v_stc_requisicao, v_stc_resposta, v_stc_erro
+		string  v_json_input, v_json_output, v_json_erro
+	endvariables
+
+	;Atribui dado de xml a variável
+	v_json_output = $xml
+
+	;Converte xml em struct
+	xmltostruct p_stc_output, v_json_output
+
+	;Trata erros
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+
+		;Retorna erro da Operation
+		return (<G_ERROEXEC>)
+	endif	
+
+	;Retorna execução bem sucedida da operation
+	return (0)
+end
+
+;Operation simples com tratamento de string
+operation plFormataTelefone
+	params;Definição de parâmetros
+		string nrTelefone	    :	in
+		string nrTelFormatado	:	out
+		$t_ds_erro$		:	out
+	endparams
+	variables ;Definição de variáveis
+		string nrFormatado
+	endvariables
+
+	;Formatação com replace em string
+	nrFormatado = $replace(nrTelefone, 1, "(", "", -1)
+	nrFormatado = $replace(nrTelefone, 1, "(", "", -1)
+	nrFormatado = $replace(nrTelefone, 1, "(", "", -1)
+
+	;Sai da operation sem falha
+end
+
+;Operation simples com chamada de Local Proc
+operation opBuscaInfosUsuario
+	params ;Tratamento de parâmetros de entrada
+		struct pStcIn	:	in
+		struct pStcOut	:	out
+		$t_ds_erro$ 	:	out
+	endparams
+
+	;Chamada de Local Proc
+	call plBuscaInfosUsuario(pStcIn, pStcOut, $t_ds_erro$)
+	#include lib_coamo:g_vld_erro	 ;Inclusão de tratamento de erros da biblioteca de validação de erros
+
+	;Retorno de operation bem sucedida
+	return(0)
+
+end
+
+
+;Operation simples para chamda de Local Proc
+operation authAzure
+	params ;Definição de parâmetros
+		string pToken     		: OUT
+		$t_ds_erro$	            : OUT
+	endParams
+	variables ;Definição de variáveis
+		String	vStrContextoErro, vStrResult, vStrHeader, vStrUrlTemp, vStrUrlFila
+		Struct	vStcTemp, vStcToken
+	endVariables
+
+	;Preparação de tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.auth)"
+	vStcTemp			= ""
+	$t_ds_erro$			= ""
+
+	;Relaiza o Auth com o AD do Azure
+	call plAuth("<URL_RESOURCE_SB>", vStcToken) ;Chama Local Proc
+	if ($status < 0); Trata erros
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>) ;Retorna operation com erro
+	endIf
+	
+	;Tratamento de falhas do retorno incorreto
+	if(vStcToken->access_token = "")
+		$t_ds_erro$ = "Houve uma falha ao obter o token de acesso ao Azure. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	;Atribuição de resultado para parâmtro de saída
+	pToken = vStcToken->access_token
+
+	;Retorno de operation bem sucedida
+	return(0)
+
+end
+
+;Operation com parâmetros e variáveis
+operation opProcessarEnvioContingencia
+	params ;Definição de parâmetros
+		struct pStcDadosEnvio	: in
+		$t_ds_erro$				: out
+	endparams
+	variables ;Definiç~]ao de variáveis
+		string vStrContextoErro, vToken
+		struct vStcCredenciaisFila, vStcToken, vStcEnvio
+	endvariables
+
+	;Preparação para tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.opProcessarEnvioRegistroContingencia)"
+
+	;Validação de parâmetros obrigatórios nos nós de uma struct de entrada
+	if(pStcDadosEnvio->dados->$membercount <= 0)
+		$t_ds_erro$ = "É obrigatório informar dados a ser enviado para a fila. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	if (pStcDadosEnvio->fila = "")
+		$t_ds_erro$ = "É obrigatório informar o nome da fila para o envio. (%%vStrContextoErro%%%)"
+		return(<G_ERROEXEC>)
+	endif
+
+	;Chamada de Local Proc 
+	call plCredenciaisFila(pStcDadosEnvio->fila, vStcCredenciaisFila)
+	if ($status < 0) ;Tratamento de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	;Chamada de Local Proc 
+	call plAuth(vStcToken)
+	if ($status < 0) ;Tratamento de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	;validação do preenchimento de uma variável
+	if(vStcToken->access_token = "")
+		$t_ds_erro$ = "Houve uma falha ao obter o token de acesso ao Azure. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	;Obtenção de valor em nó de Struct
+	vToken = vStcToken->access_token
+
+	;Criação de Struct, e atribuição de valores em seus nós
+	vStcEnvio = $newstruct 
+	vStcEnvio->sbNamespace   = vStcCredenciaisFila->namespace
+	vStcEnvio->sbFila        = vStcCredenciaisFila->fila
+	vStcEnvio->token         = vToken
+	vStcEnvio->dados         = pStcDadosEnvio->dados
+
+	;Chamada de Local Proc 
+	call plEnviaRegistroFila(vStcEnvio, "", $t_ds_erro$)
+	#include lib_coamo:g_vld_erro ;tratamentop de erros com biblioteca de validação de erros
+
+	return (0) ;Retorno com sucesso da operation
+end
+
+;Operation grande
+operation processarRegistrosEnvio
+	params ;Definição de parâmetros
+		Struct pDados     		    : IN
+		String pFila        		: IN
+		Numeric pModoEnvio     		: IN ;1 - Unitário, 2 - Multiplo
+		Numeric pQtdEnvio     		: IN ;Quantidade de objetos por envio (se multiplo)
+		boolean pConfirmaEnvio 		: IN 
+		struct  pConfirmados		: OUT
+		$t_ds_erro$	                : OUT
+	endParams
+	variables ;Definição de variáveis
+		String	vStrContextoErro, vStrResult, vStrHeader, vStrUrlTemp, vStrUrlFila, vToken, vJsonEnvio
+		Struct	vStcTemp, vStcToken, vStcCredenciaisFila, vStcEnvio, vStcIn, vStcOut, vStcMensagemErro
+		Numeric vNrItem, vNrObjetos, vNrChaveContingencia, vNrCodOperador
+	endVariables
+
+	;Preparação para tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.processarRegistrosEnvio)"
+	vStcTemp			= ""
+	$t_ds_erro$			= ""
+	vNrCodOperador 		= 999999
+
+	;Tratamento de variáveis obrigatórias
+	if(pDados->$membercount <= 0)
+		$t_ds_erro$ = "É obrigatório informar um valor para ser enviado para a fila. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	if(pFila = "")
+		$t_ds_erro$ = "É obrigatório informar o nome da fila para o envio. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endIf
+
+	if(pModoEnvio = "")
+		$t_ds_erro$ = "É obrigatório informar o modo de envio do registro para a fila. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endIf
+
+	if(pModoEnvio = 2)
+		if(pQtdEnvio = "" | pQtdEnvio = 0)
+			pQtdEnvio = 1
+		endIf
+	endIf
+
+	;Chamada de execução de outra operation em outro componente 
+	activate "LFREO055".opBuscaValorContingencia(vNrChaveContingencia, $t_ds_erro$)
+	if ($status < 0)
+		vNrChaveContingencia = 0 
+
+	;Chamda de Local Proc
+	call plCredenciaisFila(pFila, vStcCredenciaisFila)
+	if ($status < 0)
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	;Condicional para tratativa do processamento
+	if(pDados->$membercount > 0)
+		call plAuth(vStcToken)
+		if ($status < 0)
+			if ($status != <g_erroexec>)
+				call pl_erro_cmdmsg($procerrorcontext)
+			else
+				$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+			endIf
+			return(<g_erroexec>)
+		endIf
+		
+		;Tratamento do preenchimeto de variável
+		if(vStcToken->access_token = "")
+			$t_ds_erro$ = "Houve uma falha ao obter o token de acesso ao Azure. %%vStrContextoErro%%%"
+			return(<G_ERROEXEC>)
+		endif
+
+		vToken = vStcToken->access_token
+
+		vStcIn = $newstruct 
+		vStcIn->sbNamespace   = vStcCredenciaisFila->namespace
+		vStcIn->sbFila        = vStcCredenciaisFila->fila
+		vStcIn->token         = vToken
+
+		if(pModoEnvio = 1)
+
+			;Conversão de struct para Json (como uma string)
+			structToJson vJsonEnvio, pDados
+			vStcIn->dados         = vJsonEnvio
+
+			if (vNrChaveContingencia = 1) ; contingencia ligada
+				activate "LFREO055".opGravarEnvioFila(vStcIn->sbNamespace, pFila, vStcIn->dados, vNrCodOperador, $t_ds_erro$)
+			else
+				call plEnviaRegistroFila(vStcIn, vStcOut, $t_ds_erro$)
+			endif
+
+			;Tratamento de erros
+			if ($status < 0)
+				vStcMensagemErro = $newstruct
+				vStcMensagemErro->identificador = vStcIn->dados
+				vStcMensagemErro->method = "LFREO008 -> processarRegistrosEnvio"
+				vStcMensagemErro->erro = "%%$t_ds_erro$%%% - %%vStrContextoErro"
+				activate "LFREO056".opGravarLogObservabilidade(vStcMensagemErro, vNrCodOperador, $t_ds_erro$)
+			endif
+
+			;Condicional para tratativa de processamento
+			if(pConfirmaEnvio = <G_TRUE> & $status >= 0)
+				pConfirmados = pDados
+			endif
+
+		else ;Caso else de condicional if
+
+			;Criação de struct
+			vStcEnvio = $newstruct
+			vStcEnvio->$tags->jsonClass = "array" ;Definição de nó da struct como Array
+
+			;Laço de repetição FOR em itens de uma struct
+			for vNrItem = 1 to pDados->$membercount ;$membercount contabiliza os membros de uma struct em seu nó selecionado
+				vNrObjetos = vNrObjetos + 1
+				vStcEnvio->*{-1} = pDados->*{vNrItem}
+
+				if(vNrObjetos >= pQtdEnvio)
+
+					;Conversão de struct para Json (como uma string)
+					structToJson vJsonEnvio, vStcEnvio
+					vStcIn->dados         = vJsonEnvio
+
+					if (vNrChaveContingencia = 1)
+						;Chamda de operation em outro componente
+						activate "LFREO055".opGravarEnvioFila(vStcIn->sbNamespace, pFila, vStcIn->dados, vNrCodOperador, $t_ds_erro$)
+					else
+						;Chamada de Local Proc no mesmo componente
+						call plEnviaRegistroFila(vStcIn, vStcOut, $t_ds_erro$)
+					endif
+
+					if ($status < 0)
+						vStcMensagemErro = $newstruct
+						vStcMensagemErro->identificador = vStcIn->dados
+						vStcMensagemErro->method = "LFREO008 -> processarRegistrosEnvio"
+						vStcMensagemErro->erro = "%%$t_ds_erro$%%% - %%vStrContextoErro"
+						activate "LFREO056".opGravarLogObservabilidade(vStcMensagemErro, vNrCodOperador, $t_ds_erro$)
+					endif
+
+					if(pConfirmaEnvio = <G_TRUE> & $status >= 0)
+						pConfirmados->*{-1} = vStcEnvio->*{-1}
+					endif
+					
+					vStcEnvio = $newstruct ;Criação de Struct em variável do tipo struct
+					vStcEnvio->$tags->jsonClass = "array"  ;Definição de nó da struct como Array
+
+					vNrObjetos = 0
+
+				endif ;Finalização de condicional IF
+			endfor ;Finalização de laço de repetição
+		endif ;Finalização de condicional IF
+	endif ;Finalização de condicional IF
+
+	return(0) ;Retorno de saída com sucesso da operation
+
+end 
+

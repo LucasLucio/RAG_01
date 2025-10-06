@@ -6,12 +6,6 @@ from langchain_community.document_loaders import DirectoryLoader
 from langchain.schema import Document
 
 
-# Função para separar exemplos de código por linha em branco
-def preprocessor_chunks(texto):
-    blocos = [bloco.strip() for bloco in texto.split("\n\n") if bloco.strip()]
-    return blocos
-
-
 def load_base(directory):
     # Define o diretório de persistência para o banco de dados Chroma
     persistence_directory = "./chroma_db"
@@ -22,18 +16,10 @@ def load_base(directory):
         doc_loader = DirectoryLoader(directory, glob="**/*.pdf", show_progress=True)
         documents = doc_loader.load()
 
-        # Pré-processa os documentos separando exemplos de código
-        print("Separando exemplos de código por linhas em branco...")
-        processed_docs = []
-        for doc in documents:
-            blocos = preprocessor_chunks(doc.page_content)
-            for bloco in blocos:
-                processed_docs.append(Document(page_content=bloco, metadata=doc.metadata))
-
         # Divide os documentos em pedaços menores (se necessário)
         print("Dividindo documentos em chunks...")
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=600)
-        splits = text_splitter.split_documents(processed_docs)
+        splits = text_splitter.split_documents(documents)
 
         # Cria (ou atualiza) o banco de dados Chroma
         print("Criando ou atualizando a base vetorial...")

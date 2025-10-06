@@ -1,0 +1,784 @@
+;While Básico
+operation calculaTempoDescrito
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrMinutos : IN
+		string  pDsTempo   : OUT
+		$t_ds_erro$        : OUT
+	endparams
+	variables
+		numeric vNrMinutos, vNrHora
+	endvariables	
+
+	;Atribui valores as variáveis
+	vNrMinutos = pNrMinutos
+	vNrHora    = 0
+
+	if (vNrMinutos >= 60)
+		;Contabiliza horas dos minutos
+		while (vNrMinutos >= 60)
+			vNrMinutos -= 60
+			vNrHora += 1
+		endwhile
+	endif
+
+	;Atribui valores a string para retorno 
+	pDsTempo = "%%vNrHora%%%:%%vNrMinutos%%%"
+
+	return(0) ;Retorna com sucesso
+end
+
+;While com tratamento de dados retornandos em consulta ao banco de dados
+entry plAtualizaReserva
+	params
+		$t_ds_erro$ : Out
+	endparams
+	variables
+		date v_dt_processo
+		string v_nr_cpfmot
+		struct v_stc_input, v_stc_output
+	endvariables
+
+	;Busca reservas pendentes para a D+0 e D+1
+	v_dt_processo = "%%$date"
+
+	;Cria nova instancia para chamada de operação
+	newinstance "CFREO047", "CFREO047_PROCOFERTA", "Transaction=TRUE"
+
+	;Busca as reservas que são para atualizar
+	clear/e "ctra_resordcarr"
+	dt_embarque.ctra_resordcarr = v_dt_processo
+	st_reserva.ctra_resordcarr  = "12" ; Reservado
+	tp_segcarga.ctra_resordcarr = "2" 
+	retrieve/e "ctra_resordcarr"
+
+	;Valida erros de consulta
+	if ($status < 0 & $status != -2)
+		$t_ds_erro$ = "Falha ao ler dados da entidade CTRA_RESORDCARR com status %%$status"
+		goto Erro
+	endif
+
+	;Valida se encontrou registros
+	if ($status = -2)
+		clear/e "ctra_resordcarr"	
+	endif
+
+	;Define valores para os dados de operador
+	$t_tp_operador$   = 1
+	$t_cd_operador$   = 1
+
+	;Ordena em ordem crescente pela data de criação so registros
+	sort "ctra_resordcarr", "dt_trscria.ctra_resordcarr:a"
+
+	;Posiciona no primeiro registro encontrato
+	setocc "ctra_resordcarr", 1
+
+	;Realiza repetição enquando não tiver um erro, e ainda tiver registros encontrados na consulta
+	while ($status >= 0 & $dbocc("ctra_resordcarr"))
+
+		;Verifica se a instância criada ainda está ativa
+		if ($componentname("CFREO047_PROCOFERTA") = "")
+			newinstance "CFREO047", "CFREO047_PROCOFERTA", "Transaction=TRUE"	
+		endif
+
+		;Atribiu dados a struct 
+		v_stc_input                = $newstruct
+		v_stc_input->id_motorista  = id_motorista.ctra_resordcarr
+		v_stc_input->nr_versaoveic = nr_versaoveic.ctra_resordcarr
+		v_stc_input->nr_ofertafrt  = nr_ofertafrt.ctra_resordcarr
+		v_stc_input->tp_operador   = $t_tp_operador$
+		v_stc_input->cd_operador   = $t_cd_operador$
+
+		;Define operação para realizar commit de transação
+		v_stc_input->in_commit     = <G_TRUE>
+
+		;Realiza operação em outra operation em outro componente com instância separada 
+		activate "CFREO047_PROCOFERTA".atualizarOferta(v_stc_input, v_stc_output, $t_ds_erro$)
+		if ($status < 0) ;Validação de erros
+			if ($status != <G_ERROEXEC>)
+				call PL_ERRO_CMDMSG ($procerrorcontext)
+			endif
+		endif
+
+		;Posiciona conuslta no próximo registro
+		setocc "ctra_resordcarr", $curocc("ctra_resordcarr") + 1
+	endwhile
+
+	;Deleta instância no final do processamento
+	deleteinstance "CFREO047_PROCOFERTA"
+
+	return(0) ;Retorna com sucesso
+
+	Erro: ;Trecho referente ao processo de tratamento de erros
+
+	deleteinstance "CFREO047_PROCOFERTA" ;Deleta instância
+	$t_ds_erro$ = $concat($t_ds_erro$, " <PL_PROCESSAR_RESERVADO>") ;Atribui erro ao retorno
+
+	rollback ;Realiza rollback doda dados trabalhados
+
+	return (<G_ERROEXEC>) ;Retorna com erro
+end
+
+;While com dados de uma struct 
+operation consultaAceiteTermo
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		Numeric pNrTipoConsulta     : IN ;1 - CPF, 2 - Nome
+		String  pStrValorConsulta   : IN
+		struct  pStcOutput          : OUT
+		        $t_ds_erro$         : OUT
+	endparams
+	variables
+		struct v_stc_requisicao, v_stc_erro
+		string v_json_input, v_json_output, v_json_erro
+		Struct v_stc_output
+		String v_ds_contexto
+		numeric vTpIntegracao, i
+		struct vStcRoute, vStcInput, vStcOutput, vStcErro
+	endvariables
+
+	
+	;Prepara variáveis para consulta em operation de outro componente
+	vStcRoute             = ""
+	vStcRoute->controller = "termos-uso"
+	vStcRoute->service    = "usuarios"
+
+	vStcInput                 = ""
+	vStcInput->tipoConsulta   = pNrTipoConsulta
+	vStcInput->valorConsulta  = pStrValorConsulta
+
+
+	;Chama operation de consulta em outro componente
+	activate "LFREO022".opRequestApiCoft(vStcRoute, vStcInput, vStcOutput, vStcErro, $t_ds_erro$ )
+	if ($status < 0);Valida erros da chamada
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+		return (<G_ERROEXEC>)
+	endif
+
+	i = 1 ; Define inicializador do while
+
+	;While com daods de uma struct
+	while(i <= vStcOutput->resultados->$membercount) ;Percorre os membros da struct
+		;Atricui valores ao retorno
+		vStcOutput->resultados->*{i}->dataAceite = PARSEISODATETIME(vStcOutput->resultados->*{i}->dataAceite)
+		vStcOutput->resultados->*{i}->aceite = $number(vStcOutput->resultados->*{i}->aceite)
+		i += 1
+	endwhile ;Finaliza while
+	
+	;Atribui retorno
+	pStcOutput = vStcOutput
+
+	return (0) ; Retonra com sucesso
+
+end
+
+;While com tratamento de struct e condicinal
+entry plCalculaDistanciaOferta
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct p_stc_input     : IN
+		struct p_stc_output    : OUT
+	endparams
+	variables
+		numeric v_nr_pos, v_nr_latitude, v_nr_longitude, v_nr_latorigem, v_nr_lngorigem, v_qt_distancia
+		struct  v_stc_oferta
+	endvariables
+
+	;Obtem valores de variáveis da struct
+	v_nr_latorigem = p_stc_input->nr_latitude
+	v_nr_lngorigem = p_stc_input->nr_longitude
+
+	; Inicializa a resposta
+	p_stc_output                   = $newstruct
+	p_stc_output->$tags->jsonClass = "array" ;Define tipagem do nó para criação da struct
+
+	;Posiciona primeiro registro da struct
+	v_nr_pos     = 1
+	v_stc_oferta = p_stc_input->ofertas->*{v_nr_pos}
+	
+	;Percorre membros do primeiro registro da struct
+	while (v_stc_oferta->$membercount > 0)
+ 
+		;Obtem dados da struct
+		v_nr_latitude  = v_stc_oferta->motorista->localizacao->nr_latitude
+		v_nr_longitude = v_stc_oferta->motorista->localizacao->nr_longitude		
+
+		;Atribui dados a outro nó na struct
+		v_stc_oferta->nr_latorigem = v_nr_latorigem
+		v_stc_oferta->nr_lngorigem = v_nr_lngorigem
+		v_stc_oferta->nr_latdestino = v_nr_latitude
+		v_stc_oferta->nr_longitude  = v_nr_longitude
+
+		;Verifica condicional de preenchimento das variáveis
+		if (v_nr_latorigem & v_nr_lngorigem & v_nr_latitude & v_nr_longitude)
+			
+			;Chama operation em outro componente
+			activate "CTRAO159".CALCULA_DISTANCIA (v_nr_latorigem, v_nr_lngorigem, v_nr_latitude, v_nr_longitude, v_qt_distancia, $t_ds_erro$)
+
+			if ($status < 0);Validação de erros
+				if ($status != <G_ERROEXEC>)
+					call PL_ERRO_CMDMSG ($procerrorcontext)
+				endif
+
+				return (<G_ERROEXEC>)
+			endif
+		
+			;Verificação de resultado obtido
+			if (v_qt_distancia > 0)
+				; Converte a distância de m para km
+				v_stc_oferta->qt_distancia = v_qt_distancia / 1000
+			endif
+		endif
+		
+		;Atribui dado do retorno a struct
+		p_stc_output->*{-1} = v_stc_oferta
+	
+		;Vai para o próximo registro
+		v_nr_pos     = v_nr_pos + 1				
+		v_stc_oferta = p_stc_input->ofertas->*{v_nr_pos}
+	endwhile
+
+	return (0) ;Retorno com sucesso
+end
+
+;Aninhamento de While
+operation consultaSituacaoDivergencia
+	params  ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		Numeric p_cd_transp        : in
+		Numeric p_dt_anomes        : in
+		Entity cndb_sitdiv.cndb    : out
+		$t_ds_erro$        : out
+	endParams
+	variables
+		Numeric v_nr_index, v_nr_size, v_nr_size_item, v_nr_index_item, v_nr_cota, v_nr_size_div, v_nr_index_div
+		Date v_dt_inicio, v_dt_fim
+		String v_ds_contexto, v_ls_param, v_ls_nr_cota, v_ls_hit_conc, v_ls_occ_conc, v_ls_hit_item_conc, v_ls_occ_item_conc, v_ls_hit_div, v_ls_occ_div
+	endVariables
+
+	;Inicialização de variáveis do tratamento de erros
+	v_ds_contexto = "<$componentname>.consulta_sit_divergencia"
+	
+	;Limpa entidade para ser consultada
+	clear/e "cndb_sitdiv"
+	
+	;Validação de dados obrigatórios
+	if(p_cd_transp = "") 
+		$t_ds_erro$ = "Código da transportadora é parâmetro obrigatório. (%%v_ds_contexto%%%)"
+		return(<G_ERROEXEC>)
+	elseif(p_dt_anomes = "")
+		$t_ds_erro$ = "Ano/Mês é parâmetro obrigatório. (%%v_ds_contexto%%%)"
+		return(<G_ERROEXEC>)
+	endIf
+	
+	;Chama operation em outro componente
+	activate "CTRAO243".DEFINE_PERIODO_ANOMES(p_cd_transp, p_dt_anomes, v_dt_inicio, v_dt_fim, $t_ds_erro$) 
+	if($status < 0) ;Tratamento dos erros da chamada
+		if($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG($ProcErrorContext)
+		endIf
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<G_ERROEXEC>)
+	endIf
+	
+	;Chama operation em outro componente
+	activate "CTRAO243".BUSCA_COTA_TRANSP(p_cd_transp, v_dt_inicio, v_dt_fim, v_ls_nr_cota, $t_ds_erro$)
+	if($status < 0) ;Tratamento dos erros da chamada
+		if($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG($ProcErrorContext)
+		endIf
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<G_ERROEXEC>)
+	endIf
+	
+	;Contabiliza dados de lista
+	v_nr_size = $ItemCount(v_ls_nr_cota)
+	v_nr_index = 1 ; Inicializador do while
+	while(v_nr_index <= v_nr_size)
+
+		;Obtem dados da lista
+		v_nr_cota = $ItemNr(v_nr_index, v_ls_nr_cota)
+		
+		;Cria registro na entidade
+		creOcc "cndb_sitdiv", -1
+		id_sitdiv.cndb_sitdiv = v_nr_index
+		ds_sitcota.cndb_sitdiv = "Aberto" 
+		nr_cota.cndb_sitdiv = v_nr_cota  
+		qt_km.cndb_sitdiv = 0
+		qt_divtotal.cndb_sitdiv = 0
+		qt_divpend.cndb_sitdiv = 0
+		qt_divconc.cndb_sitdiv = 0     
+		
+		;Atribui dados a lista para chamda de operação
+		v_ls_hit_conc = ""
+		v_ls_param = ""
+		putItem/id v_ls_param, "cd_transp", p_cd_transp
+		putItem/id v_ls_param, "dt_anomes", p_dt_anomes
+		putItem/id v_ls_param, "nr_cota", nr_cota.cndb_sitdiv
+		;Chama operation em outro componente
+		activate "CTRAO243".BUSCA_CONCILIACAO(v_ls_param, v_ls_hit_conc, $t_ds_erro$)
+		if($status < 0) ;Tratamento dos erros da chamada
+			if($status != <G_ERROEXEC>)
+				call PL_ERRO_CMDMSG($ProcErrorContext)
+			endIf
+			$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+			return(<G_ERROEXEC>)
+		endIf
+		v_ls_occ_conc = $ItemNr(1, v_ls_hit_conc)
+		
+		;Verifica retorno
+		if(v_ls_occ_conc != "")
+			
+			;Prepara lista para chamada de operation em outro componente
+			v_ls_hit_item_conc = ""
+			v_ls_param = ""
+			putItem/id v_ls_param, "id_concfrota", $Item("id_concfrota", v_ls_occ_conc)
+			;Chama operation em outro componente
+			activate "CTRAO243".BUSCA_ITEM_CONCILIACAO(v_ls_param, v_ls_hit_item_conc, $t_ds_erro$)
+			if($status < 0) ;Tratamento dos erros da chamada
+				if($status != <G_ERROEXEC>)
+					call PL_ERRO_CMDMSG($ProcErrorContext)
+				endIf
+				$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+				return(<G_ERROEXEC>)
+			endIf
+			
+			;Contabilida registros retornados
+			v_nr_size_item = $ItemCount(v_ls_hit_item_conc)
+			v_nr_index_item = 1
+			
+			;Define valores a serem atribuidos
+			if(v_nr_size_item > 1)
+				ds_sitcota.cndb_sitdiv = "Andamento"     
+			endIf
+			
+			if($Item("dt_conclusao", v_ls_occ_conc) != "")
+				ds_sitcota.cndb_sitdiv = "Concluído" 
+			endIf
+			
+			;Segundo while para execução
+			while(v_nr_size_item >= v_nr_index_item)
+				v_ls_occ_item_conc = $ItemNr(v_nr_index_item, v_ls_hit_item_conc)
+				
+				;Prepara lista para chamada de operation em outro componente
+				v_ls_hit_div = ""
+				v_ls_param = ""
+				putItem/id v_ls_param, "id_itemconc", $Item("id_itemconc", v_ls_occ_item_conc)
+				;Chama operation em outro componente
+				activate "CTRAO243".BUSCA_DIVERGENCIA(v_ls_param, v_ls_hit_div, $t_ds_erro$)
+				if($status < 0);Tratamento dos erros da chamada
+					if($status != <G_ERROEXEC>)
+						call PL_ERRO_CMDMSG($ProcErrorContext)
+					endIf
+					$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+					return(<G_ERROEXEC>)
+				endIf 
+				
+				;Validação dos dados
+				if($Item("id_itemconc", v_ls_occ_item_conc) != "")
+					qt_km.cndb_sitdiv += $Item("qt_kmpagar", v_ls_occ_item_conc)   
+				endIf
+				
+				;Tratamento dos dados para chamda do terceiro while 
+				v_nr_size_div = $ItemCount(v_ls_hit_div)
+				v_nr_index_div = 1
+				
+				;Segundo while para execução
+				while(v_nr_size_div >= v_nr_index_div)
+					v_ls_occ_div = $ItemNr(v_nr_index_div, v_ls_hit_div)
+					
+					if($Item("dt_baixa", v_ls_occ_div) != "")
+						qt_divconc.cndb_sitdiv += 1
+					else
+						qt_divpend.cndb_sitdiv += 1
+					endIf
+					
+					qt_divtotal.cndb_sitdiv += 1
+					
+					v_nr_index_div += 1
+				endwhile ;Fechamento terceiro while        
+				
+				v_nr_index_item += 1
+			endWhile ;Fechamento segundo while        
+		endIf
+		
+		v_nr_index += 1
+	endWhile ;Fechamento primiero while        
+				
+	;Ordenação do retorno na entidade dos registros criados 
+	sort "cndb_sitdiv", "nr_cota.cndb_sitdiv"
+	
+	return(0) ;Retorno com sucesso
+end
+
+;While com processamento de dados em lista
+operation buscarEspacamento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		datetime pDataControle    : IN
+		struct pOutput            : OUT
+		$t_ds_erro$	              : OUT
+	endparams
+	variables
+		string  vStrContextoErro, vLsParametros, vLsResultados, vLsOcorrencia
+		struct  vStcRegistro
+	endvariables
+
+	;Inicialização de variáveis para tratamento de erro
+	vStrContextoErro	= "(%%$componentname%%%.buscarFaixaComprimento)"
+
+	;Inicialização de struct para retorno de registros
+	pOutput = $newstruct
+	pOutput->$tags->jsonClass = "array"
+
+	;Chamada de operation em componente diferente para consulta de dados
+	vLsParametros = ""
+	activate "CTRAO213".obtem_valrep_espeixo(vLsResultados, $t_ds_erro$)
+	if($status < 0) ;Validação de erros
+		if($status != -2)
+			$t_ds_erro$ = "Erro ao conusltar os dados de espaçamento entre eixos. (%%vStrContextoErro%%%)"
+			return(<G_ERROEXEC>)
+		endIf
+	endIf
+
+	;While em registros dentro de lista retornada
+	while ($itemnr(1, vLsResultados) != "")
+		vStcRegistro = $newstruct
+
+		;Atribui dados de retorno a struct
+		vStcRegistro->identificadorParametro                = $newstruct
+		vStcRegistro->identificadorParametro->entidade      = "CTRA_ESPEIXO"
+		vStcRegistro->identificadorParametro->atributo      = "CD_ESPEIXO"
+		vStcRegistro->identificadorParametro->identificador = $idpart($itemnr(1, vLsResultados))
+
+		vStcRegistro->descricao              = $valuepart($itemnr(1, vLsResultados))
+		vStcRegistro->tipo                   = 4 ;Espacamento entre eixos
+
+		;Atribui struct de retorno a lista de retorno em struct
+		pOutput->*{-1} = vStcRegistro
+
+		delitem vLsResultados, 1 ;Deleta o item processado da lista
+	endwhile
+
+	return (0) ; Retorno com sucesso
+end 
+
+;While com processamento de registros consultados do banco de dados
+operation buscarPaises
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		datetime pDataControle    : IN
+		struct pOutput            : OUT
+		$t_ds_erro$	              : OUT
+	endparams
+	variables
+		string vJsonEnvio, vStrContextoErro
+		struct  vStcRegistro
+	endvariables
+
+	;Inicialização de dados para tratamento de erro
+	vStrContextoErro	= "(%%$componentname%%%.plEnviarPaises)"
+
+	pOutput = $newstruct
+	pOutput->$tags->jsonClass = "array"
+
+	;Limpa entidade para pesquisa
+	clear/e "gcad_pais"
+
+	;Iniciliza variáveis para consulta ao banco de dados
+	if (pDataControle != "")
+		dt_transacao.gcad_pais = "%%pDataControle"
+	endif	
+
+	;Realiza consulta dos dados
+	retrieve/e "gcad_pais"
+	if($status < 0) ;Trata os erros
+		if($status != -2)
+			$t_ds_erro$ = "Erro ao conusltar os dados de países. (%%vStrContextoErro%%%)"
+			return(<G_ERROEXEC>)
+		endIf
+	endIf
+
+	;posiciona no primeiro registro encontrado
+	setocc "gcad_pais", 1
+
+	;While para processamento dos registros
+	while ($status >= 0 & $dbocc("gcad_pais"))
+
+		;Inicializa struct para retorno dos dados
+		vStcRegistro = $newstruct
+
+		;Atribui dados a struct do retorno
+		vStcRegistro->identificadorPais                = $newstruct
+		vStcRegistro->identificadorPais->entidade      = "GCAD_PAIS"
+		vStcRegistro->identificadorPais->atributo      = "CD_PAIS"
+		vStcRegistro->identificadorPais->identificador = cd_pais.gcad_pais
+
+		vStcRegistro->nome                   = nm_pais.gcad_pais
+		vStcRegistro->sigla                  = nm_abreviado.gcad_pais
+		vStcRegistro->codigoReceitaFederal   = cd_paisrfb.gcad_pais
+
+		;Atribui struct criada a struct de saída
+		pOutput->*{-1} = vStcRegistro
+		if ($curocc("gcad_pais") >= <QTD_OCCDISCARD>)
+			discard "gcad_pais", 1, $curocc("gcad_pais") ;Remove o registro da lista
+		else
+			setocc "gcad_pais", $curocc("gcad_pais") + 1 ;Posiciona no próximo registro encontrado
+		endif
+	endwhile
+
+	clear/e "gcad_pais" ;Limpa registros da entidade consultada
+
+	return (0) ;Retorna com sucesso
+end
+
+;While com chamada de operation na sua execução
+operation validaContrato
+	params  ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric p_cd_gpotransp: in
+		numeric p_nr_contrato: in
+		boolean p_in_esta: out
+		$t_ds_erro$: out
+	endparams
+	variables
+		string v_ds_contexto, v_ls_cdtransp, v_ls_param
+		numeric v_tp_situacao
+	endvariables
+	
+	;Inicialização de variáveis para tratamento de erros
+	v_ds_contexto = "<$componentname>, <$trigger>, esta_no_contrato"
+	
+	if (p_cd_gpotransp = "") ;Valida dados obrigatórios
+		$t_ds_erro$ = "Grupo de transportador é um parâmetro obrigatório (%%v_ds_contexto%%%)"
+		return(<g_erroexec>)
+	endif
+	
+	;Chama operation externa para conuslta dos dados
+	activate "cfreo039".ret_ls_transpgpo(p_cd_gpotransp, v_ls_cdtransp, $t_ds_erro$)
+	if ($status < 0)
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		endif
+		$t_ds_erro$ = $concat($t_ds_erro$, "(%%v_ds_contexto%%%)")
+		return(<g_erroexec>)
+	endif
+	
+	;Valida se houve retorno de dados
+	if (v_ls_cdtransp != "")
+		p_in_esta = <g_true>
+		
+		;Processa registros em while enquanto tiver dado
+		while (v_ls_cdtransp != "" & p_in_esta)
+
+			;Realiza chamda de operation externa
+			v_ls_param = ""
+			putitem/id v_ls_param, "nr_contrato", p_nr_contrato
+			putitem/id v_ls_param, "cd_transp", $itemnr(1, v_ls_cdtransp)
+			activate "cfreo002".obtem_field_pk_serro("cfre_transcontr", v_ls_param, "tp_situacao", "", v_tp_situacao, $t_ds_erro$)
+			if ($status < 0);Valida erros
+				if ($status != <g_erroexec>)
+					call pl_erro_cmdmsg($procerrorcontext)
+				endif
+				$t_ds_erro$ = $concat($t_ds_erro$, "(%%v_ds_contexto%%%)")
+				return(<g_erroexec>)
+			endif
+
+			;Define regra para continuação de processamento do while
+			p_in_esta = !(v_tp_situacao = 3 | v_tp_situacao = "")
+
+			delitem v_ls_cdtransp, 1 ;Deleta registro processado da lista de retorno
+		endwhile
+	endif
+	
+	return(0) ;Retorna com sucesso
+end
+
+;While com processamento de nós da struct
+operation buscarOfertas
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct p_stc_input        : IN
+		struct p_stc_output       : OUT
+		       $t_ds_erro$        : OUT
+	endparams
+	variables
+		struct  v_stc_requisicao, v_stc_resposta, v_stc_erro
+		string  v_json_input, v_json_output, v_json_erro, vLsIdxRemove
+		numeric v_nr_pos, x 
+		numeric vTpIntegracao, vNrIndex
+		struct vStcRoute, vStcInput, vStcOutput, vStcErro, vStcAuxiliar
+	endvariables
+
+	;Inicialização de dados para execução
+	vStcRoute             = ""
+	vStcRoute->controller = "intencao"
+	vStcRoute->service    = "listar-ofertas"
+
+	vStcInput                  = ""
+	vStcInput->cd_segcarga      = p_stc_input->cd_segcarga
+
+	;Atribuição de dados da struct de entrada a struct para consulta
+	if(p_stc_input->cd_fornecedor != "")
+		vStcInput->cd_transpcorp   = p_stc_input->cd_fornecedor
+	endif
+
+	if(p_stc_input->st_oferta != "")
+		vStcInput->st_oferta       = p_stc_input->st_oferta
+	endif
+	
+	if(p_stc_input->dt_inicio != "")
+		vStcInput->dt_inico        = parseDateTimeToISO(p_stc_input->dt_inicio)
+	endif
+
+	if(p_stc_input->dt_fim != "")
+		vStcInput->dt_fim          = parseDateTimeToISO(p_stc_input->dt_fim)
+	endif
+
+	if(p_stc_input->qt_pallet != "")
+		vStcInput->qt_pallet       = p_stc_input->qt_pallet
+	endif
+
+	if(p_stc_input->cd_municdestino != "")
+		vStcInput->cd_municdestino = p_stc_input->cd_municdestino
+	endif
+
+	if(p_stc_input->cd_municorigem != "")
+		vStcInput->cd_municorigem  = p_stc_input->cd_municorigem
+	endif
+
+	if(p_stc_input->nr_rota != "")
+		vStcInput->nr_rota = p_stc_input->nr_rota
+	endif
+
+	;realiza consulta na chamada de operation em outro componente
+	activate "LFREO022".opRequestApiCoft(vStcRoute, vStcInput, vStcOutput, vStcErro, $t_ds_erro$ )
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+		return (<G_ERROEXEC>)
+	endif
+
+	;Atribui retorno a struct que será processada
+	p_stc_output->ofertas = $newstruct
+	p_stc_output->ofertas = vStcOutput->ofertas->oferta
+
+	vLsIdxRemove = ""
+	for x = 1 to p_stc_output->ofertas->$membercount ; Processamento de dados da struct
+
+		;Limpa entidade para consulta de dados
+		clear/e "gcot_ofertacot"
+		id_motorista.gcot_ofertacot = p_stc_output->ofertas->*{x}->id_motorista
+		tp_atuacao.gcot_ofertacot   = 1 ;Participante
+		retrieve/e "gcot_ofertacot" ;Realiza consulta dos dados
+		if ($status >= 0) ;TRata se obteve retorno
+			forentity "gcot_ofertacot" ;Processa dados retornado da consulta
+				;Valida dados de regra
+				if (cd_empresa.gcot_ofertacot = p_stc_input->cd_empresa & nr_cotacao.gcot_ofertacot != p_stc_input->nr_cotacao)
+					clear/e "gcot_cotacao" ;Limpa entidade para segunda consulta de dados
+					cd_empresa.gcot_cotacao = cd_empresa.gcot_ofertacot
+					nr_cotacao.gcot_cotacao = nr_cotacao.gcot_ofertacot
+					retrieve/e "gcot_cotacao" ;Realiza segunda consulta
+					if ($status >= 0) ;Valida retorno de dados
+						if (st_cotacao.gcot_cotacao = 1 | st_cotacao.gcot_cotacao = 2 | st_cotacao.gcot_cotacao = 3 | st_cotacao.gcot_cotacao = 4)
+							putitem vLsIdxRemove, -1, x ;Atribui id para remoção em lista
+							break ;Para processamento
+						endif
+					endif
+				endif
+			endfor
+		endif
+	endfor
+
+	;Verifica se existem ids para remoção
+	if (vLsIdxRemove != "")
+		forlist x in vLsIdxRemove ;Processa remoções em struct
+			p_stc_output->ofertas->*{x}->$parent = ""
+		endfor
+	endif
+
+	; Verifica se houve uma mensagme de erro 
+	if (p_stc_output->erro->$membercount > 0)
+		$t_ds_erro$ = p_stc_output->erro->mensagem
+		return (<G_ERROEXEC>)
+	endif
+
+	v_nr_pos = 1 ;Inicializa posicionamento do registro
+	
+	;Processa registro para formação em while
+	while (p_stc_output->ofertas->*{v_nr_pos}->$membercount > 0) ;Processa while em nós da struct
+
+		;Define formatação de cada nó da struct
+		p_stc_output->ofertas->*{v_nr_pos}->confveic->componentes->$tags->jsonClass = "array"
+		p_stc_output->ofertas->*{v_nr_pos}->motorista->emails->$tags->jsonClass     = "array"
+		p_stc_output->ofertas->*{v_nr_pos}->motorista->telefones->$tags->jsonClass  = "array"
+		p_stc_output->ofertas->*{v_nr_pos}->municipiosorigem->$tags->jsonClass      = "array"
+		p_stc_output->ofertas->*{v_nr_pos}->municipiosdestino->$tags->jsonClass     = "array"
+		p_stc_output->ofertas->*{v_nr_pos}->reservas->$tags->jsonClass              = "array"
+		p_stc_output->ofertas->*{v_nr_pos}->transportadoras->$tags->jsonClass       = "array"
+
+		v_nr_pos = v_nr_pos + 1;Posiciona para o próximo registro
+	endwhile
+
+	return (0) ; Retorna com sucesso
+end
+
+;While com processamento de registros em lista
+operation consultaOrdensProducao
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		$t_cd_operador$  : in  
+		string pLsInput  : in
+		string pLsOutput : out
+		$t_ds_erro$ : out
+	endparams
+	variables
+		string vDsContexto, vLsParams, vLsInput, vLsOutput, vLsOccMovtoOrdem
+		datetime vDtFim
+	endvariables
+	
+	;Inicialização de variáveis para tratamento de erros
+	vDsContexto = "%%^%%%(<$componentname>.ConsultaTela\ConsultaOrdensProd)"
+	
+	;While enquanto a variável da lista contiver algum valor
+	while (pLsInput != "")
+		getitem vLsOccMovtoOrdem, pLsInput, 1 ;Obtem registro prosicionado em primeiro
+
+		;Valida preenchimetno dos dados
+		if (cd_plantaprod.dummy = "")
+			;Atribui dados a campos
+			cd_plantaprod.dummy = $item("cd_plantaprod", vLsOccMovtoOrdem)
+			validatefield cd_plantaprod.dummy
+			id_pontoprod.dummy  = $item("id_pontoprod", vLsOccMovtoOrdem)
+			validatefield id_pontoprod.dummy
+			id_procprod.dummy   = $item("id_procprod", vLsOccMovtoOrdem)
+			validatefield id_procprod.dummy
+			cd_modulo.dummy     = $item("cd_modulo", vLsOccMovtoOrdem)
+			cd_produto.dummy    = $item("cd_produto", vLsOccMovtoOrdem)
+			validatefield cd_produto.dummy
+		endif	
+		
+		;VAlida se não é um registor vazio
+		if (!$empty("cind_movtordem_v"))
+			;Cria mais um registro na entidade abaixo do existente
+			creocc "cind_movtordem_v", -1
+		endif
+	
+		;Obtem os registros
+		getlistitems/occ vLsOccMovtoOrdem, "cind_movtordem_v"
+
+		;Realiza consulta na entidade
+		retrieve/a "cind_movtordem_v"
+			
+		;Deleta o primeiro registro da lista, posicionando para o próximo da execução
+		delitem pLsInput, 1
+	endwhile 
+	
+	;Chama Local Proc para processamento de interface
+	call plInterfaceCampos
+
+	return(0);Retorna com sucesso
+end

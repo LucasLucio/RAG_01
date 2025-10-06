@@ -1,0 +1,519 @@
+;Condicional simples
+entry PlValidaPreenchimento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pStrVariavel : IN
+		$t_ds_erro$         : OUT
+	endparams
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (pStrVariavel = "")
+		$t_ds_erro$ = "Parâmetro não preenchido"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	endif
+
+
+	return (0) ;Retorno com sucesso
+end
+
+;Condicional com elseif
+entry PlValidaPreenchimento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pStrVariavel : IN
+		$t_ds_erro$         : OUT
+	endparams
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (pStrVariavel = "")
+		$t_ds_erro$ = "Parâmetro não preenchido"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	else if(pStrVariavel = " ")
+		$t_ds_erro$ = "Parâmetro não preenchido, espaços vazios não não considerados"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	endif
+
+
+	return (0) ;Retorno com sucesso
+end
+
+;Condicional com else
+entry PlValidaPreenchimento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pStrVariavel : IN
+		$t_ds_erro$         : OUT
+	endparams
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (pStrVariavel = "")
+		$t_ds_erro$ = "Parâmetro não preenchido"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	else
+		$t_ds_erro$ = ""
+		return(0) ;Retorno com sucesso
+	endif
+
+	return (0) ;Retorno com sucesso
+end
+
+;Condicional if completo
+entry PlValidaPreenchimento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pStrVariavel : IN
+		$t_ds_erro$         : OUT
+	endparams
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (pStrVariavel = "")
+		$t_ds_erro$ = "Parâmetro não preenchido"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	else if(pStrVariavel = " ")
+		$t_ds_erro$ = "Parâmetro não preenchido, espaços vazios não não considerados"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	else
+		$t_ds_erro$ = ""
+		return(0) ;Retorno com sucesso
+	endif
+
+	return (0) ;Retorno com sucesso
+end
+
+;Condicional aninhada
+entry PlValidaPreenchimento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pStrVariavel : IN
+		$t_ds_erro$         : OUT
+	endparams
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (pStrVariavel = "")
+		if(pStrVariavel = " ")
+			$t_ds_erro$ = "Parâmetro com espaço em branco não é considerado."
+			return(<G_ERROEXEC>) ;Retorno com erro
+		endif
+		$t_ds_erro$ = "Parâmetro não preenchido"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	endif
+
+	return (0) ;Retorno com sucesso
+end
+
+;Uso de condicional if para validação de erros
+entry plReservaMotivosRecusa
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct pStcInput   : IN
+		struct pStcOutput  : OUT
+		struct pStcErro    : OUT
+		$t_ds_erro$        : OUT
+	endparams
+	variables
+		struct vStcTemp, vStcToken
+		string vStrUrlTemp, vStrHeader, vStrContextoErro, vStrResult, vStrJsonInput
+	endvariables
+
+	;Inicialização de estrutura para tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.plReservaMotivosRecusa)"
+	vStcTemp			= ""
+	$t_ds_erro$			= ""
+
+	;Preparação de variáveis da execução
+	vStcTemp->requestMethod	= "GET"
+
+	call plUrlAmbiente(vStrUrlTemp)
+	vStcTemp->url = $concat(vStrUrlTemp, "/reserva/motivos-recusa")
+
+	vStcTemp->timeout = 60
+
+	vStcTemp->headerDelimitator	= "@"
+	vStrHeader = $concat("Content-Type: ", "application/json")
+
+	activate "LFREO007".opAuth(vStcToken)
+	if ($status < 0) ;Uso de condicional para tratamento do erro da chamada executada acima
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+	
+	vStrHeader = $concat(vStrHeader, "@", "Authorization: ", "Bearer ", vStcToken->access_token)
+
+	vStcTemp->header = vStrHeader
+
+	structToJson vStrJsonInput, pStcInput
+
+	vStcTemp->payload = vStrJsonInput
+
+	vStcTemp->componentUniface 	= $componentname
+
+	;Chamada de API externa
+	activate "WSGEW003".consomeRest(	vStcTemp->requestMethod,		    %\
+										vStcTemp->url,						%\
+										vStcTemp->headerDelimitator,	    %\
+										vStcTemp->header,					%\
+										vStcTemp->timeout,				    %\
+										"true",								%\
+										vStcTemp->componentUniface,	        %\
+										"",									%\
+										vStcTemp->payload	,				%\
+										vStcTemp->inicio,					%\
+										vStcTemp->fim,						%\
+										vStcTemp->responseCode,		        %\
+										vStcTemp->headerResponse,		    %\
+										vStcTemp->restResponse               )
+	if ($status < 0) ;Uso de condicional para tratamento do erro da chamada executada acima
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	if ($number(vStcTemp->responseCode) >= 300)  ;Uso de condicional para tratamento do retorno de requisição
+		pStcErro = ""
+		call plTrataErroRequest(vStrContextoErro,vStcTemp->restResponse,pStcErro)
+
+		$t_ds_erro$	= pStcErro->mensagem
+		$t_ds_erro$	= "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		return(<g_erroexec>)
+	endIf
+
+	;Conversão dos dados
+	vStrResult	= vStcTemp->restResponse
+	jsonToStruct pStcOutput, vStrResult
+
+end
+
+;Uso de condicional if para validação de campos e atributos
+entry plVerificaTranspHomologada
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric p_cd_transp         : IN
+		boolean p_in_ativo          : OUT 
+		boolean p_in_homologado     : OUT
+		        $t_ds_erro$         : OUT
+	endparams
+
+	variables
+		numeric v_tp_parecer
+	endvariables
+
+	if (p_cd_transp = "")
+		$t_ds_erro$ = "O código da transportadora deve ser informado"
+		return (<G_ERROEXEC>)
+	endif
+
+	p_in_homologado = "<G_TRUE>"
+
+	return (0) ; Retorno com sucesso
+
+	if ($dbocc("gpes_transp")) ;Verificação de dado retornado em consulta
+		
+		;Condicional com valor booleano
+		if (in_inativo.gpes_transp)
+			p_in_ativo = "<G_FALSE>"
+		else
+			p_in_ativo = "<G_TRUE>"
+		endif
+	
+		;Posicionamento de regstro na lista de retorno
+		setocc "gpes_fornecedor", 1
+		sort "gcpq_avalforn", "nr_avaliacao.gcpq_avalforn:d"
+		setocc "gcpq_avalforn", 1
+
+		;Condicional para verificação de atributos
+		if (tp_parecer.gcpq_avalforn = 2)
+			p_in_homologado = "<G_TRUE>"
+		else
+			p_in_homologado = "<G_FALSE>"
+		endif
+
+		;Condicional para verificação de valores
+		if (!p_in_homologado & cd_fornecedor.gpes_fornecedor != cd_matriz.gpes_fornecedor)
+			selectdb (tp_parecer) from "gcpq_avalforn" u_where         %\
+				cd_fornecedor.gcpq_avalforn = cd_matriz.gpes_fornecedor %\
+				to v_tp_parecer 
+
+			if (v_tp_parecer = 2)
+				p_in_homologado = "<G_TRUE>"
+			endif
+		endif
+	endif	
+
+	return (0)
+end
+
+;Uso de condicional para validação de campos obrigatórios
+entry plValidaOferta
+	params  ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct  p_stc_oferta     : IN
+		boolean p_in_valido      : OUT
+		string  p_ds_motivo      : OUT
+		        $t_ds_erro$      : OUT
+	endparams
+
+	variables
+		struct  v_stc_componente
+		numeric v_nr_pos
+		string  v_nr_placa, v_ls_input, v_ls_occ, v_nr_cpf, v_ls_output
+		boolean v_in_valido, v_in_achou, v_in_restricao
+	endvariables
+
+	;Validação dos dados obrigatórios informados dentro da struct de entrada
+	if (!p_stc_oferta->$membercount > 0)
+		$t_ds_erro$ = "Os dados da oferta devem ser informados"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (p_stc_oferta->dt_disponibilidade = "")
+		$t_ds_erro$ = "A data de disponibilidade da oferta deve ser informada"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (!p_stc_oferta->motorista->$membercount > 0)
+		$t_ds_erro$ = "Os dados do motorista devem ser informados"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (!p_stc_oferta->motorista->pessoa_fisica->$membercount > 0)
+		$t_ds_erro$ = "Os dados da pessoa física devem ser informados"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (p_stc_oferta->motorista->pessoa_fisica->nr_cpf = "")
+		$t_ds_erro$ = "O número do CPF deve ser informado"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (!p_stc_oferta->confveic->$membercount > 0)
+		$t_ds_erro$ = "A configuração do veículo deve ser informada"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (!p_stc_oferta->confveic->componentes->$membercount > 0)
+		$t_dS_erro$ = "Os componentes do veículo deve ser informado"
+		return (<G_ERROEXEC>)
+	endif	
+
+	v_nr_cpf   = p_stc_oferta->motorista->pessoa_fisica->nr_cpf
+	v_ls_input = ""
+
+	putitem/id v_ls_input, "dt_evento", p_stc_oferta->dt_disponibilidade
+
+	; Verifica se o motorista possui restrição cadastrada para o CPF, com chamda de em outra operation de outro componente
+	activate "CTRAO055".REST_MOTORISTA (v_nr_cpf, v_in_valido, "", v_ls_input, "", $t_ds_erro$)
+
+	;Condicinal para validação de erro na chamada
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+
+		return (<G_ERROEXEC>)
+	endif
+
+	;Condicional com negação de booleano
+	if (!v_in_valido)
+		p_ds_motivo = "Motorista com restrição no CPF %%v_nr_cpf"
+		p_in_valido = <G_FALSE>
+	
+		return (0)
+	endif
+
+	v_nr_pos         = 1
+	v_stc_componente = p_stc_oferta->confveic->componentes->*{v_nr_pos}
+
+	;Laço de repetição while para processamento de registors em struct
+	while (v_stc_componente->$membercount > 0)
+		v_ls_input = ""
+
+		putitem/id v_ls_input, "nr_placa", v_stc_componente->nr_placa
+
+		activate "CTRAO201".OBTEM_OCC_CAND_SERRO ("ctra_compveic", v_ls_input, 2, v_in_achou, v_ls_occ, $t_ds_erro$)
+
+		if ($status < 0)
+			if ($status != <G_ERROEXEC>)
+				call PL_ERRO_CMDMSG ($procerrorcontext)
+			endif
+
+			return (<G_ERROEXEC>)
+		endif
+
+		;Condicional para veriifcação de booleano
+		if (v_in_achou)
+			v_ls_input = ""
+				
+			putitem/id v_ls_input, "id_compveic", $item("id_compveic", v_ls_occ)
+			putitem/id v_ls_input, "dt_evento", p_stc_oferta->dt_disponibilidade
+
+			activate "CTRAO053".REST_COMPVEIC (v_ls_input, v_ls_output, $t_ds_erro$)	
+
+			if ($status < 0)
+				if ($status != <G_ERROEXEC>)
+					call PL_ERRO_CMDMSG ($procerrorcontext)
+				endif
+
+				return (<G_ERROEXEC>)
+			endif
+
+			v_in_restricao = $item("in_restricao", v_ls_output)
+
+			if (v_in_restricao)
+				p_ds_motivo = $concat("Placa ", v_stc_componente->nr_placa ," com restrição")
+				p_in_valido = <G_FALSE>
+
+				return (0)
+			endif
+		endif
+
+		v_nr_pos         = v_nr_pos + 1
+		v_stc_componente = p_stc_oferta->confveic->componentes->*{v_nr_pos}
+	endwhile
+	
+	; Recupera a primeira placa do veículo
+	v_nr_placa = p_stc_oferta->confveic->componentes->*{1}->nr_placa
+
+	; Verifica se o motorista e o primeiro componente possui ordem de carregamento pendente
+	activate "CTRAO161".obtem_ocarr_pendente_3 (v_nr_cpf, v_nr_placa, v_ls_occ, $t_ds_erro$)
+
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+
+		return (<G_ERROEXEC>)
+	endif
+
+	;Condicional para verificação de dado retornado
+	if (v_ls_occ != "")
+		p_ds_motivo = "O motorista possui ordem de carregamento pendente"
+		p_in_valido = <G_FALSE>
+
+		return (0)
+	endif	
+
+	p_in_valido = <G_TRUE>
+
+	return (0) ; Retorno com sucesso
+end
+
+;Uso de condicional para verificação de consultas ao banco de dados
+entry plObterHorarioCotacao
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_ls_input       : IN
+		string p_ls_output      : OUT
+		       $t_ds_erro$      : OUT 
+	endparams
+
+	variables
+		numeric  v_tp_horario, v_tp_frota
+		time     v_dt_horario
+		datetime v_dt_vigaux
+	endvariables
+
+	;Atribui a variavel o valor da lista
+	v_tp_horario = $item("tp_horario", p_ls_input)
+	v_tp_frota   = $item("tp_frota", p_ls_input)
+
+	;Condicionais para verificação de dado obrigatório
+	if (v_tp_horario = "")
+		$t_ds_erro$ = "O tipo de horário deve ser iformado"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (v_tp_frota = "")
+		$t_ds_erro$ = "O tipo de frete deve ser informado"
+		return (<G_ERROEXEC>)
+	endif
+
+	;Realiza consulta ao banco de dados
+	selectdb max(dt_vigencia) from "ctra_horariocot" u_where %\
+		tp_horariocot.ctra_horariocot = v_tp_horario &        %\
+		tp_frota.ctra_horariocot      = v_tp_frota &          %\
+		dt_vigencia.ctra_horariocot  <= $datim                %\
+		to v_dt_vigaux
+	
+	;Condicional para verificação de falha na consulta
+	if ($status < 0)
+		call PL_ERRO_CMDMSG($procerrorcontext)
+		return (<G_ERROEXEC>)
+	endif
+
+	;Realiza consulta ao banco de dados
+	clear/e "ctra_horariocot"
+	tp_horariocot.ctra_horariocot/init = v_tp_horario
+	tp_frota.ctra_horariocot/init      = v_tp_frota
+	dt_vigencia.ctra_horariocot/init   = v_dt_vigaux
+	retrieve/e "ctra_horariocot"
+
+	;Condicional para verificação de falha na consulta
+	if ($status < 0 & $status != -2)
+		$t_ds_erro$ = "Falha ao recuperar dados da entidade CTRA_HORARIOCOT com status %%$status"
+		return (<G_ERROEXEC>)
+	endif
+
+	;Condicional para verificação de dado retornado
+	if ($dbocc("ctra_horariocot"))
+		v_dt_horario = hr_referencia.ctra_horariocot[clock]
+	endif
+
+	p_ls_output = ""
+
+	;Preparação do retorno em lista
+	putitem/id p_ls_output, "hr_referencia", v_dt_horario
+
+	return (0) ; Retorno com sucesso
+end
+
+;Uso de condicional com múltiplas verificações
+entry plValidaPlaca
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_nr_placa    : IN
+		       $t_ds_erro$   : OUT
+	endparams
+	
+	variables
+		numeric v_nr_index, v_qt_letras, v_qt_numeros	
+		boolean v_in_valido
+	endvariables	
+
+	;Considicional para vericação dos dados obrigatórios
+	if (p_nr_placa = "")
+		$t_ds_erro$ = "A placa deve ser informada."
+		return (<G_ERROEXEC>)
+	endif
+
+	v_nr_index = 1
+
+	repeat
+		if (p_nr_placa[v_nr_index:1] = '&')
+			v_qt_letras += 1
+		elseif (p_nr_placa[v_nr_index:1] = '#')
+			v_qt_numeros += 1
+		endif
+
+		v_nr_index += 1
+	until (p_nr_placa[v_nr_index:1] = "")
+
+	;Condicional com uso de operador and e or
+	if ((v_qt_letras = 4 & v_qt_numeros = 3) | ((v_qt_letras = 3 & v_qt_numeros = 4) & p_nr_placa = '&&&####'))
+		v_in_valido = <G_TRUE>
+	endif
+
+	;COnsidicional para tratamento do retorno do resultado
+	if (!v_in_valido)
+		$t_ds_erro$ = "A placa informada '%%p_nr_Placa%%%' é inválida."
+		return (<G_ERROEXEC>)
+	endif
+
+	return (0) ;Retorno com sucesso
+end 
