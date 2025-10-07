@@ -28,7 +28,6 @@ def list_docs_names(type_file="all"): # type_file pode ser "all", "docs", "codes
 
     return ",".join(arquivos)
 
-
 def define_files_need(question_files, prompt_input, files_in_rag):
 
     files_supose = model_questions.execute_question(
@@ -44,10 +43,8 @@ def define_files_need(question_files, prompt_input, files_in_rag):
     # Retornar os arquivos filtrados
     return filtered_files
 
-
 def main():
     print(list_docs_names("all"))
-
 
 if __name__ == "__main__":
     main()
