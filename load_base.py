@@ -19,7 +19,7 @@ def load_docs():
 
     # Divide os documentos em pedaços menores (se necessário)
     print("Dividindo documentos em chunks...")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=500)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=300)
     splits = text_splitter.split_documents(documents)
 
     # Cria (ou atualiza) o banco de dados Chroma
@@ -41,7 +41,7 @@ def load_codes():
 
     # Carrega documentos do diretório especificado
     print(f"Carregando documentos do diretório: {directory}")
-    doc_loader = DirectoryLoader(directory, glob="**/*.pdf", show_progress=True)
+    doc_loader = DirectoryLoader(directory, glob="**/*.txt", show_progress=True)
     documents = doc_loader.load()
 
     # Divide os documentos em pedaços menores (se necessário)
