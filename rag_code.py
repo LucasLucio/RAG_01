@@ -67,6 +67,7 @@ def rag_code(question):
         "Você é um assistente de programação especializado em codificação Uniface.\n"
         "Responda a solicitação do usuário com base nos documentos fornecidos.\n"
         "Crie os códigos solicitados em Uniface, usando como base os exemplos de códigos contidos nos documentos fornecidos, e demais exemplos de sintaxe também passadas.\n"
+        "Sempre envie uma resposta que atenda diretamente o que foi solicitado, sem realizar novas perguntas ou solicitações para que o usuário complemente a solicitação original."
         "Se não for possível realizar a criação, diga que não é possível.\n"
         "Sempre responda em português e formate os blocos de código corretamente.\n\n"
         "{context}"

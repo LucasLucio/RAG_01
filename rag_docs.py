@@ -1,3 +1,4 @@
+from classes import ExecutionRag, FilesInRag
 # Importando bibliotecas necessárias
 from langchain_ollama import ChatOllama
 from langchain.chains import create_retrieval_chain
@@ -5,15 +6,19 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 import base_manager
 
-def pre_processing_question(question):
+def pre_processing_question(question) -> FilesInRag:
 
+    files_in_rag = FilesInRag()
     # Lista arquivos disponíveis
-    files_in_rag = base_manager.list_docs_names("docs")
+    rag_files = base_manager.list_docs_names("docs")
+
+    files_in_rag.files_available = [file for file in rag_files.split(",")]
+
 
     # Prompt e ajuste de input para selecionar arquivos
     question_files = (
         f"Para o seguinte questionamento do usuário {question},"
-        f"Analise dentro destes arquivos disponíveis ({files_in_rag}) "
+        f"Analise dentro destes arquivos disponíveis ({rag_files}) "
         "quais acredita conter explicações da tecnologia Uniface que irão auxiliar "
         "na elaboração de uma resposta completa, concisa e correta."
     )
@@ -29,23 +34,34 @@ def pre_processing_question(question):
     files_need = base_manager.define_files_need(
         question_files,
         prompt_input,
-        files_in_rag
+        rag_files
     )
 
-    return files_need
+    files_need = [f"files-input/docs-{file}.pdf" for file in files_need]
 
-def rag_docs(question):
+    files_in_rag.files_defined = files_need
+
+    return files_in_rag
+
+def rag_docs(question) -> ExecutionRag:
+
+    execution_rag = ExecutionRag()
 
     model = ChatOllama(model="llama3", temperature=0.6)
 
     vectorstore = base_manager.load_vectorstore()
 
-    files_needed = pre_processing_question(question)
+    process_files = pre_processing_question(question)
+    files_needed = process_files.files_defined
+
+    execution_rag.files_used = process_files
+
+    filter_dict = {"source": {"$in": files_needed}}
+
     # Recupera inicialmente k_max documentos
     retriever = vectorstore.as_retriever(
         search_type="mmr",
-        search_kwargs={"k": 10, "fetch_k": 15},
-        filter=lambda doc: doc.metadata.get("source") in files_needed,
+        search_kwargs={"k": 10, "fetch_k": 15, 'filter': filter_dict},
     )
 
     # Cria prompt de sistema
@@ -56,6 +72,7 @@ def rag_docs(question):
         "Mantenha o foco na tecnologia Uniface.\n"
         "Baseie suas respostas apenas sobre as informações contidas nos documentos.\n"
         "Caso seja necessário, utilize exemplos de código contidos nos documentos para ilustrar suas respostas.\n"
+        "Sempre envie uma resposta que atenda diretamente o que foi solicitado, sem realizar novas perguntas ou solicitações para que o usuário complemente a solicitação original."
         "Se não for possível realizar a resposta para o questionamento passado, diga que não é possível responder por não possuir o conhecimento necessário sobre o assunto para enviar uma resposta assertiva.\n"
         "Sempre responda em português e formate os blocos de código do exemplo corretamente.\n\n"
         "{context}"
@@ -71,4 +88,8 @@ def rag_docs(question):
     # Invoca a cadeia passando apenas os documentos selecionados
     response = rag_chain.invoke({"input": question})
 
-    return response["answer"]
+    execution_rag.question = question
+    execution_rag.response = response["answer"]
+    execution_rag.context = response["context"]
+
+    return execution_rag

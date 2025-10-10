@@ -12,8 +12,11 @@ def execute_question(question):
     attempt_response = router.redirect_question(question)
     if attempt_response and isinstance(attempt_response, str) and len(attempt_response) > 0:
         validate_responses = judge.judge_answer(question, attempt_response, metric=0.7)
-        if validate_responses.is_correct:
+        if validate_responses.get("is_correct") == True:
             return attempt_response
+        else:
+            attempts += 1
+            continue
     else:
         attempts += 1
         continue

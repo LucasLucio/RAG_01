@@ -73,6 +73,7 @@ def rag_both(question):
         "Se necessário criar códigos em Uniface, faça-o, usando como base os exemplos de códigos contidos nos documentos fornecidos, e demais exemplos de sintaxe também passadas.\n"
         "Mantenha o foco na tecnologia Uniface.\n"
         "Baseie suas respostas apenas sobre as informações contidas nos documentos.\n"
+        "Sempre envie uma resposta que atenda diretamente o que foi solicitado, sem realizar novas perguntas ou solicitações para que o usuário complemente a solicitação original."
         "Se não for possível realizar a resposta para o questionamento passado, diga que não é possível responder por não possuir o conhecimento necessário sobre o assunto para enviar uma resposta assertiva.\n"
         "Sempre responda em português e formate os blocos de código do exemplo corretamente.\n\n"
         "{context}"

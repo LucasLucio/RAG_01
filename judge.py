@@ -14,8 +14,11 @@ def judge_answer(question, answer, metric=0.7):
             "As variações intermediárias podem utilizar de qualquer valor decimal entre 0.0 e 1.0, como por exemplo: 0.2, 0.35, 0.68, 0.79, etc. Não passando de duas casas decimais após o ponto."
             "Não acrescente nada ao início nem ao final da resposta, apenas o valor numérico."
             "Durante a avaliação, considere que a resposta deve ser tecnicamente correta, e também deve atender ao que foi solicitado na pergunta."
+            "Caso a resposta não esteja atendendo diretamente ao que foi solicitado, considere como incorreta."
+            "Se a resposta for uma nova solicitação ao usuário para complementar a solicitação original, considere como incorreta."
+            "Se a resposta for um questionamento direcionado ao usuário responder, considere como incorreta."
         ),
-        temperature=0.6,
+        temperature=0.5,
     )
     try:
         evaluation = float(evaluation)

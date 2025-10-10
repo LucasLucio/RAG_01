@@ -1,3 +1,4 @@
+from classes import ExecutionRag, Redirect
 # Importando bibliotecas necessárias
 import model_questions
 import rag_docs
@@ -5,7 +6,7 @@ import rag_code
 import rag_both
 
 
-def define_type_question(question):
+def define_type_question(question) -> Redirect:
     type_question = model_questions.execute_question(
         question,
         (
@@ -20,22 +21,28 @@ def define_type_question(question):
             "Questionamentos que incluam termos como 'como funciona', 'me mostre um exemplo de', 'quais são os passos para', 'me ajude a entender', ou similares, podem ser classificadas como ambos, dependendo do contexto."
             "Avalie exatamente o que foi perguntado, e responda apenas com uma dessas três palavras. Considerando o que o usuário deseja ter como retorno."
         ),
-        temperature=0.5,
+        temperature=0.3,
     )
     types_question_valid = ["código", "conceito", "ambos"]
 
     if type_question not in types_question_valid:
-        return "ambos"
+        final_type = "ambos"
     else:
-        return type_question
+        final_type = type_question
 
-def redirect_question(question):
-    type_question = define_type_question(question)
+    return Redirect(final_type, type_question)
+
+
+def redirect_question(question) ->ExecutionRag:
+    define_type = define_type_question(question)
+    type_question = define_type.final_type
     if type_question == "conceito":
-       response = rag_docs.rag_docs(question)
+        response = rag_docs.rag_docs(question)
     elif type_question == "código":
-       response = rag_code.rag_code(question)
+        response = rag_code.rag_code(question)
     else:  # ambos
-       response = rag_both.rag_both(question)
+        response = rag_both.rag_both(question)
+
+    response.type_question = define_type
 
     return response

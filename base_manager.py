@@ -21,9 +21,17 @@ def list_docs_names(type_file="all"): # type_file pode ser "all", "docs", "codes
         if "source" in metadata:
             # Remove tudo antes de uma barra invertida (\) e depois de um ponto (.)
             arquivo_formatado = metadata["source"].split("/")[-1].split(".")[0]
-            if not arquivo_formatado.startswith(type_file):
+            if not arquivo_formatado.startswith(type_file) and type_file != "all":
                 continue
-            arquivo_formatado = arquivo_formatado.removeprefix(f"{type_file}-")
+
+            if type_file != "all":               
+                arquivo_formatado = arquivo_formatado.removeprefix(f"{type_file}-")
+            else:
+                if(arquivo_formatado.startswith("docs-")):
+                    arquivo_formatado = arquivo_formatado.removeprefix("docs-")
+                elif(arquivo_formatado.startswith("codes-")):
+                    arquivo_formatado = arquivo_formatado.removeprefix("codes-")
+
             arquivos.add(arquivo_formatado)
 
     return ",".join(arquivos)
