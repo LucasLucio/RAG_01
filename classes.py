@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 @dataclass
 class Redirect:
-    final_type: str
-    define_type: str
+    final_type: Optional[str] = None
+    define_type: Optional[str] = None
 
 @dataclass
 class FilesInRag:
@@ -13,9 +13,9 @@ class FilesInRag:
 
 @dataclass
 class ExecutionRag:
-    question: str
-    response: str
+    question: Optional[str] = None
+    response: Optional[str] = None
+    context: Optional[any] = None
     files_used: FilesInRag = field(default_factory=FilesInRag)
-    context: any
     type_question: Redirect = field(default_factory=Redirect)
 

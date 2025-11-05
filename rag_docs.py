@@ -23,11 +23,16 @@ def pre_processing_question(question) -> FilesInRag:
         "na elaboração de uma resposta completa, concisa e correta."
     )
     prompt_input = (
-        "Considere que você é um assistente de perguntas e respostas especializado na tecnologia Uniface"
-        "Responda apenas e exatamente o solicitado"
-        "Responda apresentando somente uma lista simples com os nomes de arquivos separados por ;"
-        "Não crie novos arquivos, utilize somente os apresentados"
-        "Não acrescente nada ao início nem ao final da resposta, apenas os nomes dos arquivos."
+        """
+            Você é um assistente de perguntas e respostas especializado na tecnologia Uniface.
+                Responda apenas e exatamente ao que for solicitado.
+
+            Regras:
+                - Retorne somente uma lista simples contendo 4 nomes de arquivos, separados por ponto e vírgula (;).
+                - Os arquivos devem ser ordenados do mais relevante ao menos relevante, considerando o que foi solicitado.
+                - Não invente, não modifique e não crie novos arquivos. Utilize apenas os fornecidos no contexto.
+                - Não adicione nenhum texto antes ou depois da lista (sem explicações, comentários, títulos ou formatação extra).
+        """
     )
 
     # Define os arquivos que serão utilizados
@@ -37,7 +42,7 @@ def pre_processing_question(question) -> FilesInRag:
         rag_files
     )
 
-    files_need = [f"files-input/docs-{file}.pdf" for file in files_need]
+    files_need = [f"files-input/docs/docs-{file}.pdf" for file in files_need]
 
     files_in_rag.files_defined = files_need
 
@@ -60,22 +65,35 @@ def rag_docs(question) -> ExecutionRag:
 
     # Recupera inicialmente k_max documentos
     retriever = vectorstore.as_retriever(
-        search_type="mmr",
-        search_kwargs={"k": 10, "fetch_k": 15, 'filter': filter_dict},
+        search_type="similarity",
+        search_kwargs={"k": 10, 'filter': filter_dict},
     )
 
+ 
     # Cria prompt de sistema
     system_prompt = (
-        "Você é um assistente de perguntas e respostas especializado na tecnologia Uniface.\n"
-        "Responda a solicitação do usuário com base nos documentos fornecidos.\n"
-        "Utilize a base de conhecimento contida nos documentos para responder a pergunta do usuário.\n"
-        "Mantenha o foco na tecnologia Uniface.\n"
-        "Baseie suas respostas apenas sobre as informações contidas nos documentos.\n"
-        "Caso seja necessário, utilize exemplos de código contidos nos documentos para ilustrar suas respostas.\n"
-        "Sempre envie uma resposta que atenda diretamente o que foi solicitado, sem realizar novas perguntas ou solicitações para que o usuário complemente a solicitação original."
-        "Se não for possível realizar a resposta para o questionamento passado, diga que não é possível responder por não possuir o conhecimento necessário sobre o assunto para enviar uma resposta assertiva.\n"
-        "Sempre responda em português e formate os blocos de código do exemplo corretamente.\n\n"
-        "{context}"
+        """
+            Você é um assistente especialista na tecnologia Uniface.
+            Responda somente com base nas informações presentes nos documentos fornecidos pelo RAG.
+
+            Regras:
+            - Foque apenas em assuntos relacionados à tecnologia Uniface.
+            - Utilize exemplos de código dos documentos no contexto informado quando forem úteis.
+                - Leia e interprete o contexto atentamente.
+                - Priorize trechos mais relevantes para a pergunta.
+                - Não invente informações fora do contexto.
+                - Não faça suposições baseadas em conhecimento externo.
+            - Responda somente ao que foi solicitado, sem pedir informações adicionais.
+            - Caso as informações necessárias não estejam nos documentos, responda que não é possível responder por falta de conhecimento.
+            - Sempre responda em português.
+            - Formate corretamente blocos de código quando forem utilizados.
+
+            Objetivo:
+            Fornecer uma resposta clara, direta e precisa, baseada estritamente na base de conhecimento.
+
+            Contexto: {context}
+        """
+
     )
     prompt = ChatPromptTemplate.from_messages(
         [("system", system_prompt), ("human", "{input}")]
@@ -90,6 +108,9 @@ def rag_docs(question) -> ExecutionRag:
 
     execution_rag.question = question
     execution_rag.response = response["answer"]
-    execution_rag.context = response["context"]
+    execution_rag.context = [
+        {"source": doc.metadata.get("source"), "content": doc.page_content}
+        for doc in response["context"]
+    ]
 
     return execution_rag
