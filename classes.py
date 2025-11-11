@@ -28,3 +28,13 @@ class ExecutionRag:
     files_used: FilesInRag = field(default_factory=FilesInRag)
     type_question: Redirect = field(default_factory=Redirect)
 
+@dataclass
+class JudgeResult:
+    evaluation: Optional[float] = None
+    metric: Optional[float] = None
+    is_correct: Optional[bool] = None
+    occurred_error: Optional[bool] = None
+    judge_response: Optional[str] = None
+    datetime_start: Optional[datetime] = None
+    datetime_end: Optional[datetime] = None
+

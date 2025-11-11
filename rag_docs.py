@@ -9,13 +9,12 @@ import base_manager
 
 def pre_processing_question(question) -> FilesInRag:
 
-    files_in_rag = FilesInRag()
-    files_in_rag.datetime_start = datetime.now()
     # Lista arquivos disponíveis
     rag_files = base_manager.list_docs_names("docs")
 
+    files_in_rag = FilesInRag()
+    files_in_rag.datetime_start = datetime.now()
     files_in_rag.files_available = [file for file in rag_files.split(",")]
-
 
     # Prompt e ajuste de input para selecionar arquivos
     question_files = (

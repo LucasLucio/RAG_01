@@ -47,7 +47,7 @@ def define_type_question(question) -> Redirect:
     return Redirect(datetime_start, datetime_end, final_type, type_question)
 
 
-def redirect_question(question) ->ExecutionRag:
+def redirect_question(question) -> ExecutionRag:
     define_type = define_type_question(question)
     type_question = define_type.final_type
     if type_question == "conceito":

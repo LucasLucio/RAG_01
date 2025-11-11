@@ -9,13 +9,14 @@ import base_manager
 from classes import ExecutionRag, FilesInRag
 import model_questions
 
-def pre_processing_question(question):
+def pre_processing_question(question) -> FilesInRag:
 
     # Lista arquivos disponíveis
     files_rag = base_manager.list_docs_names("all")
 
     files_in_rag = FilesInRag()
     files_in_rag.datetime_start = datetime.now()
+    files_in_rag.files_available = [file for file in files_rag.split(",")]
 
     # Gera pseudo código para o questionamento
     pseudo_code = model_questions.execute_question(
@@ -64,9 +65,25 @@ def pre_processing_question(question):
     # Remove duplicatas da lista de arquivos necessários
     files_need = list(set(files_need))
 
-    return files_need
+    #Filtra e define arquivos de código e documentos
+    files_rag_docs = base_manager.list_docs_names("docs")
+    files_rag_code = base_manager.list_docs_names("codes")
 
-def rag_both(question) ->ExecutionRag:
+    files_need_docs = [file for file in files_need if file in files_rag_docs]
+    files_need_docs_dir = [f"files-input/docs/docs-{file}.pdf" for file in files_need_docs]
+
+    files_need_code = [file for file in files_need if file in files_rag_code]
+    files_need_code_dir = [f"files-input/codes/codes-{file}.pdf" for file in files_need_code]
+
+    files_need = files_need_docs_dir + files_need_code_dir
+
+    files_in_rag.files_defined = files_need
+
+    files_in_rag.datetime_end = datetime.now()
+
+    return files_in_rag
+
+def rag_both(question) -> ExecutionRag:
 
     execution_rag = ExecutionRag()
     execution_rag.datetime_start = datetime.datetime.now()
@@ -76,25 +93,38 @@ def rag_both(question) ->ExecutionRag:
     vectorstore = base_manager.load_vectorstore()
 
     files_needed = pre_processing_question(question)
+
+    execution_rag.files_used = files_needed
+
+    filter_dict = {"source": {"$in": files_needed.files_defined}}
+
     # Recupera inicialmente k_max documentos
     retriever = vectorstore.as_retriever(
-        search_type="mmr",
-        search_kwargs={"k": 15, "fetch_k": 20},
-        filter=lambda doc: doc.metadata.get("source") in files_needed,
+        search_type="similarity",
+        search_kwargs={"k": 10, 'filter': filter_dict},
     )
 
     # Cria prompt de sistema
     system_prompt = (
-        "Você é um assistente de perguntas e respostas especializado na tecnologia Uniface.\n"
-        "Responda a solicitação do usuário com base nos documentos fornecidos.\n"
-        "Utilize a base de conhecimento contida nos documentos para responder a pergunta do usuário.\n"
-        "Se necessário criar códigos em Uniface, faça-o, usando como base os exemplos de códigos contidos nos documentos fornecidos, e demais exemplos de sintaxe também passadas.\n"
-        "Mantenha o foco na tecnologia Uniface.\n"
-        "Baseie suas respostas apenas sobre as informações contidas nos documentos.\n"
-        "Sempre envie uma resposta que atenda diretamente o que foi solicitado, sem realizar novas perguntas ou solicitações para que o usuário complemente a solicitação original."
-        "Se não for possível realizar a resposta para o questionamento passado, diga que não é possível responder por não possuir o conhecimento necessário sobre o assunto para enviar uma resposta assertiva.\n"
-        "Sempre responda em português e formate os blocos de código do exemplo corretamente.\n\n"
-        "{context}"
+        """
+            Você é um assistente de perguntas e respostas especializado na tecnologia Uniface.
+            Responda sempre com base nos documentos fornecidos pelo RAG.
+
+            Regras:
+                - Utilize exclusivamente a base de conhecimento presente nos documentos para responder à solicitação.
+                - Se for necessário criar código em Uniface, use como referência os exemplos e sintaxes presentes no contexto.
+                - Mantenha o foco apenas na tecnologia Uniface.
+                - Não utilize conhecimento externo ou crie informações que não estejam documentadas.
+                - Atenda diretamente ao que foi solicitado, sem pedir informações adicionais.
+                - Se não houver informações suficientes para responder com assertividade, diga que não é possível responder por falta de conhecimento no contexto.
+                - Responda sempre em português.
+                - Formate corretamente quaisquer blocos de código fornecidos.
+
+            Objetivo:
+                - Fornecer uma resposta clara, assertiva e fundamentada apenas nos documentos disponíveis.
+            
+            Contexto: {context}
+        """
     )
  
     prompt = ChatPromptTemplate.from_messages(
@@ -107,5 +137,14 @@ def rag_both(question) ->ExecutionRag:
 
     # Invoca a cadeia passando apenas os documentos selecionados
     response = rag_chain.invoke({"input": question})
+
+    execution_rag.question = question
+    execution_rag.response = response["answer"]
+    execution_rag.context = [
+        {"source": doc.metadata.get("source"), "content": doc.page_content}
+        for doc in response["context"]
+    ]
+
+    execution_rag.datetime_end = datetime.now()
     
-    return response["answer"]
+    return execution_rag

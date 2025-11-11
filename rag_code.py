@@ -16,6 +16,7 @@ def pre_processing_question(question) -> FilesInRag:
 
     files_in_rag = FilesInRag()
     files_in_rag.datetime_start = datetime.now()
+    files_in_rag.files_available = [file for file in files_rag.split(",")]
 
     # Gera pseudo código para o questionamento
     pseudo_code = model_questions.execute_question(
