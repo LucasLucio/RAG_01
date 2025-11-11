@@ -1,3 +1,4 @@
+from datetime import datetime
 from classes import ExecutionRag, FilesInRag
 # Importando bibliotecas necessárias
 from langchain_ollama import ChatOllama
@@ -9,6 +10,7 @@ import base_manager
 def pre_processing_question(question) -> FilesInRag:
 
     files_in_rag = FilesInRag()
+    files_in_rag.datetime_start = datetime.now()
     # Lista arquivos disponíveis
     rag_files = base_manager.list_docs_names("docs")
 
@@ -46,11 +48,13 @@ def pre_processing_question(question) -> FilesInRag:
 
     files_in_rag.files_defined = files_need
 
+    files_in_rag.datetime_end = datetime.now()
     return files_in_rag
 
 def rag_docs(question) -> ExecutionRag:
 
     execution_rag = ExecutionRag()
+    execution_rag.datetime_start = datetime.now()
 
     model = ChatOllama(model="llama3", temperature=0.6)
 
@@ -113,4 +117,5 @@ def rag_docs(question) -> ExecutionRag:
         for doc in response["context"]
     ]
 
+    execution_rag.datetime_end = datetime.now()
     return execution_rag

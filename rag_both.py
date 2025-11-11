@@ -1,16 +1,21 @@
 # Importando bibliotecas necessárias
+import datetime
 from langchain_ollama import ChatOllama
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
 import base_manager
+from classes import ExecutionRag, FilesInRag
 import model_questions
 
 def pre_processing_question(question):
 
     # Lista arquivos disponíveis
-    files_in_rag = base_manager.list_docs_names("all")
+    files_rag = base_manager.list_docs_names("all")
+
+    files_in_rag = FilesInRag()
+    files_in_rag.datetime_start = datetime.now()
 
     # Gera pseudo código para o questionamento
     pseudo_code = model_questions.execute_question(
@@ -21,29 +26,39 @@ def pre_processing_question(question):
         "Não acrescente nada ao início nem ao final da resposta, apenas o pseudo código."
         "Não é necessário explicar o pseudo código, apenas apresente o pseudo código."
     ))
+
+    files_in_rag.pseudo_code = pseudo_code
+    files_in_rag.datetime_pseudo_code = datetime.now()
         
     # Prompt e ajuste de input para selecionar arquivos
     question_files = (
         f"Para o seguinte questionamento do usuário {question}, foi criado o seguinte "
-        f"pseudo código: {pseudo_code}. Analise dentro destes arquivos disponíveis ({files_in_rag}) "
+        f"pseudo código: {pseudo_code}. Analise dentro destes arquivos disponíveis ({files_rag}) "
         "quais acredita conter exemplos de código em Uniface ou explicações da tecnologia que irão auxiliar "
         "em transcrever o código para a linguagem e na elaboração de uma resposta completa, concisa e correta."
     )
     prompt_input = (
-        "Considere que você é um especialista em codificação em Uniface."
-        "E também um assistente de perguntas e respostas especializado na tecnologia Uniface."
-        "Responda apenas e exatamente o solicitado"
-        "Responda apresentando somente uma lista simples com os nomes de arquivos separados por ;"
-        "Não crie novos arquivos, utilize somente os apresentados"
-        "Não acrescente nada ao início nem ao final da resposta, apenas os nomes dos arquivos."
-        "Considere o questionamento do usuário para analisar se também há algum arquivo que possa ser útil, e inclua na resposta."
+        """
+            Você é um especialista em codificação em Uniface e também um assistente de perguntas e respostas especializado na tecnologia Uniface.
+            Responda apenas e exatamente ao que foi solicitado.
+
+            Regras:
+
+                - Retorne somente uma lista simples contendo nomes de arquivos separados por ponto e vírgula (;).
+                - Não invente, modifique ou crie novos arquivos; utilize apenas os arquivos presentes no contexto.
+                - Avalie o questionamento do usuário e inclua também arquivos que possam ser úteis para atender à solicitação.
+                - Não adicione texto antes ou depois da lista (sem comentários, títulos ou explicações).
+
+            Objetivo:
+                - Fornecer uma lista direta, relevante e completa de arquivos conforme o pedido do usuário.
+        """
     )
 
     # Define os arquivos que serão utilizados
     files_need = base_manager.define_files_need(
         question_files,
         prompt_input,
-        files_in_rag
+        files_rag
     )
 
     # Remove duplicatas da lista de arquivos necessários
@@ -51,7 +66,10 @@ def pre_processing_question(question):
 
     return files_need
 
-def rag_both(question):
+def rag_both(question) ->ExecutionRag:
+
+    execution_rag = ExecutionRag()
+    execution_rag.datetime_start = datetime.datetime.now()
 
     model = ChatOllama(model="llama3", temperature=0.6)
 
