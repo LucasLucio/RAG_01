@@ -55,7 +55,7 @@ def rag_docs(question, steps) -> ExecutionRag:
     execution_rag = ExecutionRag()
     execution_rag.datetime_start = datetime.now()
 
-    model = ChatOllama(model="llama3", temperature=0.6)
+    model = ChatOllama(model="llama3", temperature=0.7)
 
     vectorstore = base_manager.load_vectorstore()
 
