@@ -6,6 +6,13 @@ import rag_docs
 import rag_code
 import rag_both
 
+def redirect(question, steps: list) -> ExecutionRag:
+    if 'router' in steps:
+        return execute_router(question, steps)
+    else:
+        return execute_direct(question, steps)
+
+
 
 def define_type_question(question) -> Redirect:
     datetime_start = datetime.now()
@@ -47,16 +54,19 @@ def define_type_question(question) -> Redirect:
     return Redirect(datetime_start, datetime_end, final_type, type_question)
 
 
-def redirect_question(question) -> ExecutionRag:
+def execute_router(question, steps: list) -> ExecutionRag:
     define_type = define_type_question(question)
     type_question = define_type.final_type
     if type_question == "conceito":
-        response = rag_docs.rag_docs(question)
+        response = rag_docs.rag_docs(question, steps)
     elif type_question == "código":
-        response = rag_code.rag_code(question)
+        response = rag_code.rag_code(question, steps)
     else:  # ambos
-        response = rag_both.rag_both(question)
+        response = rag_both.rag_both(question, steps)
 
     response.type_question = define_type
 
     return response
+
+def execute_direct(question, steps: list) -> ExecutionRag:
+    return rag_both.rag_both(question, steps)

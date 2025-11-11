@@ -83,7 +83,7 @@ def pre_processing_question(question) -> FilesInRag:
 
     return files_in_rag
 
-def rag_both(question) -> ExecutionRag:
+def rag_both(question, steps) -> ExecutionRag:
 
     execution_rag = ExecutionRag()
     execution_rag.datetime_start = datetime.datetime.now()
@@ -96,13 +96,7 @@ def rag_both(question) -> ExecutionRag:
 
     execution_rag.files_used = files_needed
 
-    filter_dict = {"source": {"$in": files_needed.files_defined}}
-
-    # Recupera inicialmente k_max documentos
-    retriever = vectorstore.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": 10, 'filter': filter_dict},
-    )
+    retriever = base_manager.create_retriever(vectorstore, files_needed, steps)
 
     # Cria prompt de sistema
     system_prompt = (

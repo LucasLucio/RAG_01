@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
+import json
 from typing import List, Optional
 from datetime import datetime
 
@@ -13,20 +14,10 @@ class Redirect:
 class FilesInRag:
     datetime_start: Optional[datetime] = None
     datetime_end: Optional[datetime] = None
-    files_available: List[str] = field(default_factory=list)
-    files_defined: List[str] = field(default_factory=list)
     pseudo_code: Optional[str] = None
     datetime_pseudo_code: Optional[datetime] = None
-
-@dataclass
-class ExecutionRag:
-    question: Optional[str] = None
-    response: Optional[str] = None
-    datetime_start: Optional[datetime] = None
-    datetime_end: Optional[datetime] = None
-    context: Optional[any] = None
-    files_used: FilesInRag = field(default_factory=FilesInRag)
-    type_question: Redirect = field(default_factory=Redirect)
+    files_available: List[str] = field(default_factory=list)
+    files_defined: List[str] = field(default_factory=list)
 
 @dataclass
 class JudgeResult:
@@ -38,3 +29,30 @@ class JudgeResult:
     datetime_start: Optional[datetime] = None
     datetime_end: Optional[datetime] = None
 
+
+@dataclass
+class ExecutionRag:
+    question: Optional[str] = None
+    response: Optional[str] = None
+    datetime_start: Optional[datetime] = None
+    datetime_end: Optional[datetime] = None
+    context: Optional[any] = None
+    returned: Optional[bool] = None
+    attempt: Optional[int] = None
+    type_question: Optional[Redirect] = None
+    files_used: FilesInRag = field(default_factory=FilesInRag)
+    judge_result: JudgeResult = field(default_factory=JudgeResult)
+
+
+@dataclass
+class Executions:
+    question: Optional[str] = None
+    datetime_start: Optional[datetime] = None
+    datetime_end: Optional[datetime] = None
+    default_return: Optional[bool] = None
+    response: Optional[str] = None
+    executions_rag: List[ExecutionRag] = field(default_factory=list)
+    steps: List[str] = field(default_factory=list)
+
+    def to_json(self):
+        return json.dumps(asdict(self), default=str, indent=4)
