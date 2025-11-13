@@ -24,18 +24,14 @@ def define_type_question(question) -> Redirect:
                 Responda apenas e exatamente ao que foi solicitado.
 
                 Regras:
-                    - Classifique o questionamento do usuário em código, conceito ou ambos.
+                    - Classifique o questionamento do usuário em código, conceito ou ambos, considerando quais termos das diretrizes de interpretação aparecem no questionamento.
                     - Sua resposta deve conter apenas uma dessas três palavras, sem explicações adicionais.
-                    - Avalie se o usuário deseja a criação/geração de código ou se deseja entender um ou mais conceitos.
-                    - Caso o questionamento envolva os dois, responda ambos.
-                    - Se for um questionamento conceitual e você considerar que exemplos de código são necessários para explicar, responda ambos.
-                    - O desejo do usuário pode ou não estar explícito na pergunta; avalie o contexto.
 
                 Diretrizes de interpretação:
 
-                    - Termos como: “faça algo”, “como faço para”, “gere um código que”, “crie um script que”, “faça um programa que” -> tendem a ser código.
-                    - Termos como: “o que é”, “explique”, “defina”, “qual a diferença entre”, “quais são as vantagens de” -> tendem a ser conceito.
-                    - Termos como: “como funciona”, “me mostre um exemplo de”, “quais são os passos para”, “me ajude a entender” -> podem ser ambos, dependendo do contexto.
+                    - Termos no questionamento como: “faça algo”, “como faço para”, “gere um código que”, “crie um script que”, “faça um programa que” -> tendem a ser código.
+                    - Termos no questionamento como: “o que é”, “explique”, “defina”, “qual a diferença entre”, “quais são as vantagens de” -> tendem a ser conceito.
+                    - Termos no questionamento como: “como funciona”, “me mostre um exemplo de”, “quais são os passos para”, “me ajude a entender” -> tendem a ser ambos.
 
                 Objetivo:
                     - Classificar exatamente o que foi perguntado, considerando o retorno desejado pelo usuário.

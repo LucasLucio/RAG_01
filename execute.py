@@ -71,7 +71,7 @@ def execute_judge(question, steps: list) -> Executions:
        executions.datetime_end = datetime.now()
        executions.response = "Desculpe, não consegui gerar uma resposta adequada no momento. Por favor, tente novamente."
    else:
-        best_evaluation = None
+        best_evaluation = 0.0
         best_execution = None
         for id in range(len(executions.executions_rag)):
             execution = executions.executions_rag[id]

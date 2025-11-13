@@ -31,7 +31,7 @@ def pre_processing_question(question) -> FilesInRag:
             Regras:
                 - Retorne somente uma lista simples contendo 4 nomes de arquivos, separados por ponto e vírgula (;).
                 - Os arquivos devem ser ordenados do mais relevante ao menos relevante, considerando o que foi solicitado.
-                - Não invente, não modifique e não crie novos arquivos. Utilize apenas os fornecidos no contexto.
+                - Não invente, não modifique e não crie novos arquivos. Utilize apenas os fornecidos como disponíveis.
                 - Não adicione nenhum texto antes ou depois da lista (sem explicações, comentários, títulos ou formatação extra).
         """
     )
@@ -40,7 +40,8 @@ def pre_processing_question(question) -> FilesInRag:
     files_need = base_manager.define_files_need(
         question_files,
         prompt_input,
-        rag_files
+        rag_files,
+        4
     )
 
     files_need = [f"files-input/docs/docs-{file}.pdf" for file in files_need]

@@ -16,6 +16,7 @@ class FilesInRag:
     datetime_end: Optional[datetime] = None
     pseudo_code: Optional[str] = None
     datetime_pseudo_code: Optional[datetime] = None
+    files_supose: Optional[str] = None
     files_available: List[str] = field(default_factory=list)
     files_defined: List[str] = field(default_factory=list)
 

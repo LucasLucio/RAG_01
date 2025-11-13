@@ -1,5 +1,5 @@
 # Importando bibliotecas necessárias
-import datetime
+from datetime import datetime
 from langchain_ollama import ChatOllama
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -55,9 +55,9 @@ def pre_processing_question(question) -> FilesInRag:
             Responda apenas e exatamente ao que for solicitado.
 
             Regras:
-                - Retorne somente uma lista simples contendo 4 nomes de arquivos, separados por ponto e vírgula (;).
-                - Não invente, modifique ou crie novos arquivos; utilize apenas os arquivos presentes no contexto.
-                - Avalie o questionamento do usuário e inclua também arquivos que possam ser úteis para atender a solicitação.
+                - Retorne somente uma lista simples contendo somente 4 nomes de arquivos, separados por ponto e vírgula (;).
+                - Os arquivos devem ser ordenados do mais relevante ao menos relevante, considerando o que foi solicitado.
+                - Não invente, não modifique e não crie novos arquivos. Utilize apenas os fornecidos como disponíveis.
                 - Não adicione texto antes ou depois da lista (sem comentários, títulos ou explicações).
 
             Objetivo:
@@ -66,15 +66,17 @@ def pre_processing_question(question) -> FilesInRag:
     )
 
     # Define os arquivos que serão utilizados
-    files_need = base_manager.define_files_need(
+    files_need, files_supose = base_manager.define_files_need(
         question_files,
         prompt_input,
-        files_rag
+        files_rag,
+        4
     )
 
-    files_need = [f"files-input/codes/codes-{file}.pdf" for file in files_need]
+    files_need = [f"files-input/codes/codes-{file}.txt" for file in files_need]
 
     files_in_rag.files_defined = files_need
+    files_in_rag.files_supose = files_supose
 
     files_in_rag.datetime_end = datetime.now()
 
@@ -94,24 +96,23 @@ def rag_code(question, steps) -> ExecutionRag:
 
     execution_rag.files_used = files_needed
 
-    retriever = base_manager.create_retriever(vectorstore, files_needed, steps)
+    retriever = base_manager.create_retriever(vectorstore, files_needed.files_defined, steps)
 
     # Cria prompt de sistema
     system_prompt = (
-
         """
             Você é um assistente de programação especializado em codificação Uniface.
-            Responda sempre com base nos documentos fornecidos pelo RAG.
+            Gere os códigos em Uniface solicitados, sempre seguindo a sintaxe da linguagem presente nos documentos.
 
             Regras:
-                - Crie o código solicitado em Uniface, usando como referência os exemplos e sintaxes presentes no contexto.
+                - Crie o código solicitado sempre em Uniface, usando como referência para a geração os exemplos e sintaxes presentes no contexto.
                 - Atenda diretamente ao pedido do usuário, sem solicitar informações adicionais.
                 - Se não houver informações suficientes no contexto para gerar o código, responda que não é possível.
                 - Responda sempre em português.
                 - Formate corretamente os blocos de código.
         
             Objetivo:
-                - Fornecer código funcional e coerente com o exemplo dos documentos, atendendo exatamente ao pedido do usuário.
+                - Fornecer código em Uniface funcional e coerente com o exemplo dos contextos, atendendo exatamente ao pedido do usuário.
         
             Contexto: {context}
         """

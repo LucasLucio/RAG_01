@@ -34,22 +34,22 @@ def list_docs_names(type_file="all"): # type_file pode ser "all", "docs", "codes
 
             arquivos.add(arquivo_formatado)
 
-    return ",".join(arquivos)
+    return ", ".join(arquivos)
 
-def define_files_need(question_files, prompt_input, files_in_rag):
+def define_files_need(question_files, prompt_input, files_in_rag, max_files=5):
 
     files_supose = model_questions.execute_question(
         question_files,
-        prompt_input
+        prompt_input,
     )
 
-    list_files = [file.strip() for file in files_supose.split(";")]
+    list_files = [file.strip().lower() for file in files_supose.split(";")]
 
     # Filtrar os arquivos que estão em files_in_rag
-    filtered_files = [file for file in list_files if file in files_in_rag]
+    filtered_files = [file for file in list_files if file in files_in_rag][:max_files]
 
     # Retornar os arquivos filtrados
-    return filtered_files
+    return filtered_files, files_supose
 
 def create_retriever(vectorstore, files_needed, steps: list):
     if 'filter' in steps:
