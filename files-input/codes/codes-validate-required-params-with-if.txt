@@ -1,0 +1,57 @@
+entry plVerificaTranspHomologada
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric p_cd_transp         : IN
+		boolean p_in_ativo          : OUT 
+		boolean p_in_homologado     : OUT
+		        $t_ds_erro$         : OUT
+	endparams
+
+	variables
+		numeric v_tp_parecer
+	endvariables
+
+	if (p_cd_transp = "")
+		$t_ds_erro$ = "O código da transportadora deve ser informado"
+		return (<G_ERROEXEC>)
+	endif
+
+	p_in_homologado = "<G_TRUE>"
+
+	return (0) ; Retorno com sucesso
+
+	if ($dbocc("gpes_transp")) ;Verificação de dado retornado em consulta
+		
+		;Condicional com valor booleano
+		if (in_inativo.gpes_transp)
+			p_in_ativo = "<G_FALSE>"
+		else
+			p_in_ativo = "<G_TRUE>"
+		endif
+	
+		;Posicionamento de regstro na lista de retorno
+		setocc "gpes_fornecedor", 1
+		sort "gcpq_avalforn", "nr_avaliacao.gcpq_avalforn:d"
+		setocc "gcpq_avalforn", 1
+
+		;Condicional para verificação de atributos
+		if (tp_parecer.gcpq_avalforn = 2)
+			p_in_homologado = "<G_TRUE>"
+		else
+			p_in_homologado = "<G_FALSE>"
+		endif
+
+		;Condicional para verificação de valores
+		if (!p_in_homologado & cd_fornecedor.gpes_fornecedor != cd_matriz.gpes_fornecedor)
+			selectdb (tp_parecer) from "gcpq_avalforn" u_where         %\
+				cd_fornecedor.gcpq_avalforn = cd_matriz.gpes_fornecedor %\
+				to v_tp_parecer 
+
+			if (v_tp_parecer = 2)
+				p_in_homologado = "<G_TRUE>"
+			endif
+		endif
+	endif	
+
+	return (0)
+end

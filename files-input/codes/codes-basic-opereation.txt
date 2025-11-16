@@ -1,0 +1,22 @@
+operation exemploSoma
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrPrimeiro     : IN
+		numeric pNrSegundo      : IN
+		numeric pNrResultado    : OUT
+		$t_ds_erro$	            : OUT
+	endParams
+
+	pNrResultado = pNrPrimeiro + pNrSegundo
+
+	;Tratamento de erro 
+	if ($status < 0)
+		$t_ds_erro$ = "Falha ao somar números"
+		;Retorna com Falha
+		return(-99)
+	endIf
+	
+	;Retorna operação com sucesso
+	return(0)
+
+end

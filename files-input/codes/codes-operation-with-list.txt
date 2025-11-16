@@ -1,0 +1,31 @@
+operation listarTiposVeiculo
+	params;Definição de parâmetros
+		       $t_cd_operador$    : IN
+		string p_ls_input         : IN
+		struct p_stc_output       : OUT
+		       $t_ds_erro$        : OUT
+	endparams
+	variables ;Definição de variáveis
+		struct  v_stc_requisicao, v_stc_resposta, v_stc_erro
+		string  v_json_input, v_json_output, v_json_erro
+	endvariables
+
+	;Atribui dado de xml a variável
+	v_json_output = $xml
+
+	;Converte xml em struct
+	xmltostruct p_stc_output, v_json_output
+
+	;Trata erros
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+
+		;Retorna erro da Operation
+		return (<G_ERROEXEC>)
+	endif	
+
+	;Retorna execução bem sucedida da operation
+	return (0)
+end

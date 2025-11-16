@@ -1,0 +1,22 @@
+entry plConsultaCredenciais
+	params
+		struct pStcCredencial : OUT
+	endparams
+
+	;Inicializa uma struct para armazenar resultado de saida
+	pStcCredencial = $newstruct
+
+	;Realiza condicional if, para avaliar o ambiente na constante do nome database e retornar o valor
+	if (<NOME_DATABASE> = "PRODUCAO")
+		pStcCredencial->ci = "dce3e984-c73a-4f02-a256-400675e292e4"
+		pStcCredencial->cs = "CS-EXEMPLO"
+	elseif (<NOME_DATABASE> = "TREINAMENTO") 
+		pStcCredencial->ci = "dce3e984-c73a-4f02-a256-400675e292e4"
+		pStcCredencial->cs = "CS-EXEMPLO"
+	elseif (<NOME_DATABASE> = "DESENVOLVIMENTO")
+		pStcCredencial->ci = "dce3e984-c73a-4f02-a256-400675e292e4"
+		pStcCredencial->cs = "CS-EXEMPLO"
+	endif
+
+	return (0)
+end

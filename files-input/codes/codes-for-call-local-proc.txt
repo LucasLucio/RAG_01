@@ -1,0 +1,51 @@
+entry plVerificaPrioridade
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct p_stc_periodo            :in
+		struct p_stc_frequencias_exec   :out
+				 $t_ds_erro$               :out
+	endparams
+	variables
+		numeric  v_nr_x 
+		datetime v_dt_prox_exec
+		struct   v_stc_frequencia, v_stc_frequencia_exec
+		string   v_ds_tempo, v_ds_contexto
+	endvariables	
+	
+	;Inicialização de variáveis para tratamento de erros
+	v_ds_contexto = " (<$componentname>.PL_VERIFICA_PRIORIDADES_EXEC)"
+
+	;Atribui nó vazio a struct
+	v_stc_frequencia_exec->frequencias = $newStruct
+
+	;Processa for em nós da struct
+	for v_nr_x = 1 to p_stc_periodo->frequencias->$memberCount
+		;Obtem objeto deferente a posição percorrida do for
+		v_stc_frequencia = p_stc_periodo->frequencias->*{v_nr_x}
+		
+		;valida dados de nó
+		if(v_stc_frequencia->ultimaExecucao != "")
+			
+			;Chama execução de Local Proc para tratamento de dados
+			call PL_CALCULA_TEMPO(v_stc_frequencia->intervalo, v_ds_tempo, $t_ds_erro$)
+			if ($status < 0)
+					$t_ds_erro$ = "Ocorreu um erro ao calcular o tempo de intervalo de execução da prioridade. (%%v_ds_contexto%%%) "
+					return(<G_ERROEXEC>)
+			endif
+
+			;Define valores a variáveis
+			v_dt_prox_exec = $datim(v_stc_frequencia->ultimaExecucao) + $clock(v_ds_tempo)
+			if(v_dt_prox_exec <= $datim)
+				v_stc_frequencia_exec->frequencias->*{-1} = v_stc_frequencia
+			endif
+		else
+			;Define valores a variáveis
+			v_stc_frequencia->ultimaExecucao = $datim
+		endif
+	endfor
+	
+	;Define a retorno os dados de retorno
+	p_stc_frequencias_exec = v_stc_frequencia_exec
+	return(0) ; Retorna com sucesso
+
+end

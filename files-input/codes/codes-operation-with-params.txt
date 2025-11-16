@@ -1,0 +1,68 @@
+operation enviaEmail
+	params
+		Struct pStcInput			: IN
+		Struct pStcOutput			: OUT
+		Struct pStcOutputError	    : OUT
+	endParams
+	variables
+		String	vStrContextoErro
+		Struct	vStcTemp
+	endVariables
+
+	;Configurações iniciais para tratamentos de erro
+	vStrContextoErro	= "(%%$componentname%%%.enviaEmail)"
+	vStcTemp				= ""
+	pStcOutput			= ""
+	pStcOutputError	= ""
+
+	;Criação de uma struct
+	vStcTemp->"%%(pStcInput->versao)%%%"	= $newStruct
+	vStcTemp->"%%(pStcInput->versao)%%%"->*{-1}	= pStcInput->*
+	vStcTemp->"%%(pStcInput->versao)%%%"->*{-1}	= pStcInput->payload->*
+	vStcTemp->"%%(pStcInput->versao)%%%"->payload->$parent	= ""
+	;Chamada de uma função local do componente
+	call plValidaParametros(vStcTemp,pStcOutputError)
+	;Tratamento de erros
+	if ($status < 0)
+		if ($status = <g_erroexec>)
+			call plErroWeb("", "", "", vStrContextoErro, pStcOutputError)
+		else
+			call pl_erro_cmdmsg($procerrorcontext)
+			call plErroWeb(500, $t_ds_erro$, "", vStrContextoErro, pStcOutputError)
+		endif
+		return(<g_erroexec>)
+	endif
+
+	;Reinicialização de uma variável struct
+	vStcTemp	= ""
+
+	;Switch/case para verificação de versão 
+	selectCase pStcInput->versao 
+		case	"v1" ;Vericficação do case da variável
+
+			;Chamada de operação a ser executada
+			call plEnviaEmail_v1 (pStcInPut,pStcOutput,pStcOutputError)
+			;Tratamento de erros
+			if ($status < 0)
+				if ($status = <g_erroexec>)
+					call plErroWeb("", "", "", vStrContextoErro, pStcOutputError)
+				else
+					call pl_erro_cmdmsg($procerrorcontext)
+					call plErroWeb(500, $t_ds_erro$, "", vStrContextoErro, pStcOutputError)
+				endif
+				return(<g_erroexec>)
+			endif
+
+		elseCase ; Caso else do switch/case
+			call plErroWeb(500, "Versão(versao) é um parâmetro obrigatório.", "", vStrContextoErro, pStcOutputError)
+			return(<g_erroexec>)
+	endSelectCase
+
+	;Limpeza de variáveis para finalização
+	vStrContextoErro	= ""
+	vStcTemp				= ""
+	pStcOutputError	= ""
+
+	return(0) ;Retorno da operation com sucesso
+
+end ;enviaEmail

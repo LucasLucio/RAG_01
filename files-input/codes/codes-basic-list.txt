@@ -1,0 +1,24 @@
+operation criaListaSemIdentificador
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        string pDsPrimeiroNome    : IN   
+		string pDsSegundoNome     : IN    
+		string pDsTerceiroNome    : IN    
+		string pDsQuartoNome      : IN      
+        string  pDsResultado      : OUT 
+        $t_ds_erro$ : OUT
+    endparams
+
+	;Cria lista vazia
+	pDsResultado = ""
+
+	;Atribui valores
+	putitem pDsResultado, -1 , pDsPrimeiroNome
+	putitem pDsResultado, -1 , pDsSegundoNome
+	putitem pDsResultado, -1 , pDsTerceiroNome
+	putitem pDsResultado, -1 , pDsQuartoNome
+
+
+	return (0) ;Retorna operação com sucesso
+
+end

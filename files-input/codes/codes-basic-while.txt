@@ -1,0 +1,28 @@
+operation calculaTempoDescrito
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrMinutos : IN
+		string  pDsTempo   : OUT
+		$t_ds_erro$        : OUT
+	endparams
+	variables
+		numeric vNrMinutos, vNrHora
+	endvariables	
+
+	;Atribui valores as variáveis
+	vNrMinutos = pNrMinutos
+	vNrHora    = 0
+
+	if (vNrMinutos >= 60)
+		;Contabiliza horas dos minutos
+		while (vNrMinutos >= 60)
+			vNrMinutos -= 60
+			vNrHora += 1
+		endwhile
+	endif
+
+	;Atribui valores a string para retorno 
+	pDsTempo = "%%vNrHora%%%:%%vNrMinutos%%%"
+
+	return(0) ;Retorna com sucesso
+end

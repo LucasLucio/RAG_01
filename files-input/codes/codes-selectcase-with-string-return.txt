@@ -1,0 +1,65 @@
+entry plDiaDaSemana
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		date pDtData :in
+		boolean pInAbrev :in
+		string pDsSemana :out
+	endparams
+	variables
+		numeric pNrData
+	endvariables
+	
+	pNrData = pDtData[#A]
+
+	;Abertura selectcase
+	selectcase(pNrData)
+		case 1 ;segunda
+			if(pInAbrev)
+				pDsSemana = " Seg"
+			else
+				pDsSemana = "Segunda"
+			endif
+		case 2 ;terça
+			if(pInAbrev)
+				pDsSemana = " Ter"
+			else
+				pDsSemana = "Terça"
+			endif
+		case 3 ;quarta
+			if(pInAbrev)
+				pDsSemana = " Qua"
+			else
+				pDsSemana = "Quarta"
+			endif
+		case 4 ;quinta
+			if(pInAbrev)
+				pDsSemana = " Qui"
+			else
+				pDsSemana = "Quinta"
+			endif
+		case 5 ;sexta
+			if(pInAbrev)
+				pDsSemana = " Sex"
+			else
+				pDsSemana = "Sexta"
+			endif
+		case 6 ;sábado
+			if(pInAbrev)
+				pDsSemana = " Sáb"
+			else
+				pDsSemana = "Sábado"
+			endif
+		case 7 ;domingo
+			if(pInAbrev)
+				pDsSemana = " Dom"
+			else
+				pDsSemana = "Domingo"
+			endif
+		elsecase ; Se vier vazio.
+			;tratamento do erro
+			$t_ds_erro$    = "Dia da semana não encontrado para: %%pDtData%%%"
+			return <g_erroexec>
+	endselectcase
+
+	return(0) ;Retorno com sucesso
+end

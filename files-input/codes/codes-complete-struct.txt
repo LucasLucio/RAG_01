@@ -1,0 +1,67 @@
+entry plCalculaDistanciaOferta
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct p_stc_input     : IN
+		struct p_stc_output    : OUT
+	endparams
+	variables
+		numeric v_nr_pos, v_nr_latitude, v_nr_longitude, v_nr_latorigem, v_nr_lngorigem, v_qt_distancia
+		struct  v_stc_oferta
+	endvariables
+
+	;Obtem valores de variáveis da struct
+	v_nr_latorigem = p_stc_input->nr_latitude
+	v_nr_lngorigem = p_stc_input->nr_longitude
+
+	; Inicializa a resposta
+	p_stc_output                   = $newstruct
+	p_stc_output->$tags->jsonClass = "array" ;Define tipagem do nó para criação da struct
+
+	;Posiciona primeiro registro da struct
+	v_nr_pos     = 1
+	v_stc_oferta = p_stc_input->ofertas->*{v_nr_pos}
+	
+	;Percorre membros do primeiro registro da struct
+	while (v_stc_oferta->$membercount > 0)
+ 
+		;Obtem dados da struct
+		v_nr_latitude  = v_stc_oferta->motorista->localizacao->nr_latitude
+		v_nr_longitude = v_stc_oferta->motorista->localizacao->nr_longitude		
+
+		;Atribui dados a outro nó na struct
+		v_stc_oferta->nr_latorigem = v_nr_latorigem
+		v_stc_oferta->nr_lngorigem = v_nr_lngorigem
+		v_stc_oferta->nr_latdestino = v_nr_latitude
+		v_stc_oferta->nr_longitude  = v_nr_longitude
+
+		;Verifica condicional de preenchimento das variáveis
+		if (v_nr_latorigem & v_nr_lngorigem & v_nr_latitude & v_nr_longitude)
+			
+			;Chama operation em outro componente
+			activate "CTRAO159".CALCULA_DISTANCIA (v_nr_latorigem, v_nr_lngorigem, v_nr_latitude, v_nr_longitude, v_qt_distancia, $t_ds_erro$)
+
+			if ($status < 0);Validação de erros
+				if ($status != <G_ERROEXEC>)
+					call PL_ERRO_CMDMSG ($procerrorcontext)
+				endif
+
+				return (<G_ERROEXEC>)
+			endif
+		
+			;Verificação de resultado obtido
+			if (v_qt_distancia > 0)
+				; Converte a distância de m para km
+				v_stc_oferta->qt_distancia = v_qt_distancia / 1000
+			endif
+		endif
+		
+		;Atribui dado do retorno a struct
+		p_stc_output->*{-1} = v_stc_oferta
+	
+		;Vai para o próximo registro
+		v_nr_pos     = v_nr_pos + 1				
+		v_stc_oferta = p_stc_input->ofertas->*{v_nr_pos}
+	endwhile
+
+	return (0) ;Retorno com sucesso
+end

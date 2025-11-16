@@ -1,0 +1,30 @@
+entry plBuscaFilaExecucao
+	params;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric p_nr_fila :out
+		$t_ds_erro$ :out
+	endparams
+	variables ;Variáveis da Local Proc
+		string vDsContexto, v_ls_param, v_nr_lancamento
+	endvariables
+	
+ 	;Configurações iniciais para tratamentos de erro
+	vDsContexto = "<$componentname>.plBuscaFilaExecucao"
+
+	;Criação de lista para passagem de parâmetros da lista que usa entrada em listas
+	putitem/id v_ls_param, "tp_sequencia", "LFRE_SB"
+	
+	;Chamada de uma operation em outro componente
+	activate "GSISO037".OBTEM_FIELD_PK_SERRO("GSIS_NUMSEQ", v_ls_param, "nr_lancamento", "", v_nr_lancamento, $t_ds_erro$)
+	;Tratamento de erro
+	if ($status < 0)
+		$t_ds_erro$ = "%%$t_ds_erro$%%% - (%%vDsContexto)"
+		return <g_erroExec> ;Retorno do erro
+	endif 
+
+	;Tratamento para resultado de saída
+	p_nr_fila = v_nr_lancamento
+	
+	;Retorno da operation com sucesso
+	return(0)
+end 

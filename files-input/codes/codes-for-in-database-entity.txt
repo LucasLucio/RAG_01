@@ -1,0 +1,32 @@
+operation valrepTipoReferencia
+	params
+		string p_ls_valrep	: out
+		$t_ds_erro$			: out
+	endparams
+	variables
+		string v_ds_contexto
+	endvariables
+
+	;Inicialização de variáveis para tratamento de erro
+	v_ds_contexto = "<$componentname>.valrep_tp_referencia_2"
+	
+	;Chamada de operation no mesmo componente
+	activate $componentname.valrep_tp_referencia("gndb_dropdown", $t_ds_erro$)
+	if ($status < 0) ;Validação de erros da chamada
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<g_erroexec>)
+	endif
+
+	;For em entidade para processamento dos registros
+	forentity "gndb_dropdown"
+
+		;Atribuição dos dados do registro em lista
+		putitem p_ls_valrep, -1, "%%tp_consulta.gndb_dropdown%%%=%%tp_consulta.gndb_dropdown%%% - %%ds_dropdown.gndb_dropdown%%%"
+	endfor
+
+	return(0) ;Retorno com sucesso
+end
+

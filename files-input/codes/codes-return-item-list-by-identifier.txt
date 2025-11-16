@@ -1,0 +1,16 @@
+operation retornaItemIdentificado
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pNrIdentificador    : IN  
+		string pDsValor            : OUT  
+        $t_ds_erro$                : OUT
+    endparams
+
+    vLista = "A=Atenas;R=Roma;Sy=Siracusa;P=Pompéia;Sp=Esparta"
+
+	;Obtem o valor da lista com o identificador
+    pDsValor = $item(pNrIdentificador,vLista)
+
+    return(0) ;Retorno com sucesso
+end
+

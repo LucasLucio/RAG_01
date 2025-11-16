@@ -1,0 +1,76 @@
+entry plCredenciaisFila
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pNomeFila      :IN
+		struct pStcCredencial : OUT
+	endparams
+	variables ;Variáveis da Local Proc
+		string  vFila, vNamespace
+		numeric vNrFila
+	endvariables
+
+	;Switch/Case para aplicação da regra de retorno
+	selectcase pNomeFila
+		case "municipio"
+			vFila = "sbq-municipio"
+		case "uf"
+			vFila = "sbq-uf"
+		case "pais"
+			vFila = "sbq-pais"
+		case "transportadora"
+			vFila = "sbq-transportadora"
+		case "oportunidade"
+			vFila = "sbq-oportunidade"
+		case "tipo-veiculo"
+			vFila = "sbq-tipo-veiculo"
+		case "tipo-carroceria"
+			vFila = "sbq-tipo-carroceria"
+		case "faixa-comprimento"
+			vFila = "sbq-faixa-comprimento"
+		case "espacamento-eixos"
+			vFila = "sbq-espacamento-eixos"
+		case "vinculo-ordem-carregamento"
+			vFila = "sbq-vinculo-ordem-carregamento"
+		case "vinculo-portaria"
+			vFila = "sbq-vinculo-portaria"
+		case "veiculo-frota-safra"
+			vFila = "sbq-veiculo-frota-safra"
+		case "restricao-veiculo-local"
+			vFila = "sbq-restricao-veiculo-local"
+		case "vinculo-nota"
+			vFila = "sbq-vinculo-nota"
+		case "reserva-intencao-logs"
+			vFila = "sbq-reserva-intencao-logs"
+		case "modalidade-contrato"
+			vFila = "sbq-modalidade-contrato"
+		case "integracao-tipo-cvc"
+			vFila = "sbq-integracao-tipo-cvc"
+		elsecase
+			vFila = ""
+	endselectcase ; Finalização do Switch/Case
+
+	;Chamda de outra Local Proc para complemento da execução
+	call plBuscaFilaExecucao(vNrFila, $t_ds_erro$)
+
+	;Condicional if para completar o dado de retorno
+	if (vNrFila = 1 & <NOME_DATABASE> = "PRODUÇÃO") ;Produção 
+		vNamespace = "sbns-coft-prd"
+	elseif (vNrFila = 2) ;Homologação
+		vNamespace = "sbns-coft-stg"
+	elseif (vNrFila = 3) ;Desenvolvimento
+		vNamespace = "sbns-coft-dev"
+	endif
+
+	;Tratamemnto de eror das chamadas executadas acima
+	if(vFila = "" | vNamespace = "")
+		$t_ds_erro$ = "Ocorreu um erro ao obter as credenciais da fila."
+		return(<G_ERROEXEC>) ;Retorno de erro da Local Proc
+	endIf
+
+	;Tratamento dos resultados para retorno em Struct
+	pStcCredencial = $newstruct
+	pStcCredencial->namespace = vNamespace
+	pStcCredencial->fila = vFila
+
+	return (0) ;Retorna a Local Proc com sucesso
+end 

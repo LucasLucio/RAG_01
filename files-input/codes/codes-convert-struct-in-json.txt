@@ -1,0 +1,88 @@
+entry plReservaMotivosRecusa
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct pStcInput   : IN
+		struct pStcOutput  : OUT
+		struct pStcErro    : OUT
+		$t_ds_erro$        : OUT
+	endparams
+	variables
+		struct vStcTemp, vStcToken
+		string vStrUrlTemp, vStrHeader, vStrContextoErro, vStrResult, vStrJsonInput
+	endvariables
+
+	;Inicialização de estrutura para tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.plReservaMotivosRecusa)"
+	vStcTemp			= ""
+	$t_ds_erro$			= ""
+
+	;Preparação de variáveis da execução
+	vStcTemp->requestMethod	= "GET"
+
+	call plUrlAmbiente(vStrUrlTemp)
+	vStcTemp->url = $concat(vStrUrlTemp, "/reserva/motivos-recusa")
+
+	vStcTemp->timeout = 60
+
+	vStcTemp->headerDelimitator	= "@"
+	vStrHeader = $concat("Content-Type: ", "application/json")
+
+	activate "LFREO007".opAuth(vStcToken)
+	if ($status < 0) ;Uso de condicional para tratamento do erro da chamada executada acima
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+	
+	vStrHeader = $concat(vStrHeader, "@", "Authorization: ", "Bearer ", vStcToken->access_token)
+
+	vStcTemp->header = vStrHeader
+
+	;Converte struct em Json
+	structToJson vStrJsonInput, pStcInput
+
+	vStcTemp->payload = vStrJsonInput
+
+	vStcTemp->componentUniface 	= $componentname
+
+	;Chamada de API externa
+	activate "WSGEW003".consomeRest(	vStcTemp->requestMethod,		    %\
+										vStcTemp->url,						%\
+										vStcTemp->headerDelimitator,	    %\
+										vStcTemp->header,					%\
+										vStcTemp->timeout,				    %\
+										"true",								%\
+										vStcTemp->componentUniface,	        %\
+										"",									%\
+										vStcTemp->payload	,				%\
+										vStcTemp->inicio,					%\
+										vStcTemp->fim,						%\
+										vStcTemp->responseCode,		        %\
+										vStcTemp->headerResponse,		    %\
+										vStcTemp->restResponse               )
+	if ($status < 0) ;Uso de condicional para tratamento do erro da chamada executada acima
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	if ($number(vStcTemp->responseCode) >= 300)  ;Uso de condicional para tratamento do retorno de requisição
+		pStcErro = ""
+		call plTrataErroRequest(vStrContextoErro,vStcTemp->restResponse,pStcErro)
+
+		$t_ds_erro$	= pStcErro->mensagem
+		$t_ds_erro$	= "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		return(<g_erroexec>)
+	endIf
+
+	;Conversão dos dados
+	vStrResult	= vStcTemp->restResponse
+	jsonToStruct pStcOutput, vStrResult
+
+end

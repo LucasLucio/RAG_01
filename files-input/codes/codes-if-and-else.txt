@@ -1,0 +1,18 @@
+entry PlValidaPreenchimento
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string pStrVariavel : IN
+		$t_ds_erro$         : OUT
+	endparams
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (pStrVariavel = "")
+		$t_ds_erro$ = "Parâmetro não preenchido"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	else
+		$t_ds_erro$ = ""
+		return(0) ;Retorno com sucesso
+	endif
+
+	return (0) ;Retorno com sucesso
+end

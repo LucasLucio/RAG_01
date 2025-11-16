@@ -1,0 +1,118 @@
+;For em estrututa da struct
+operation liberarViagem
+	Params;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		$t_tp_operador$    : in
+		$t_cd_operador$    : in
+		Struct p_stc_in    : in  
+		$t_ds_erro$        : out
+	EndParams
+	variables
+		numeric x, y, v_tp_creditoped, v_cd_modulo, v_cd_unidade, v_nr_procfat, v_id_veiculo, v_nr_solictransp
+		numeric v_nr_tentativas, v_id_viagemped
+		boolean v_in_libsemcompra
+		string v_ls_param, v_ls_doctocarga, v_nm_componente, v_ls_occ
+		struct v_stc_item, v_stc_param, v_stc_origemped
+	endvariables
+
+	;Try catch para tratamento de falhas
+	try
+
+		;Atribuição de valores a variáveis
+		v_nm_componente       = pl_extrair_dados_struct("nm_componente", p_stc_in)
+		v_tp_creditoped       = pl_extrair_dados_struct("tp_creditoped", p_stc_in)
+		v_in_libsemcompra     = pl_extrair_dados_struct("in_libsemcompra", p_stc_in)
+
+		;Validação de dados obrigatórios
+		if (v_nm_componente   = "") throw -99999, "Nome do componente é um parâmetro obrigatório."
+		if (v_tp_creditoped   = "") throw -99999, "Tipo de crédito do vale pedágio é um parâmetro obrigatório."
+		if (v_in_libsemcompra = "") throw -99999, "Indicador de liberação da viagem sem a compra do vale pedágio é um parâmetro obrigatório."
+		if ($t_tp_operador$   = "") throw -99999, "Tipo do operador é um parâmetro obrigatório"
+		if ($t_tp_operador$   = "") throw -99999, "Código do operador é um parâmetro obrigatório"
+
+		;Chamada de local proc para validação de estrutura
+		if (!pl_validar_struct(p_stc_in, "nf")) ;Considicional para validação de erro
+			throw -99999, "Estrutura de dados das notas fiscais não encontrada."
+		else ;Caso não tenha erro
+
+			;Processamento de laço em itens da struct
+			for x = 1 to p_stc_in->nf->$collsize
+
+				;Atribuição de dados a variáveis
+				v_cd_modulo  	 	 = pl_extrair_dados_struct("cd_modulo", 	 p_stc_in->nf{x})
+				v_cd_unidade	 	 = pl_extrair_dados_struct("cd_unidade", 	 p_stc_in->nf{x})
+				v_nr_procfat 	 	 = pl_extrair_dados_struct("nr_procfat", 	 p_stc_in->nf{x})
+				v_id_veiculo 	 	 = pl_extrair_dados_struct("id_veiculo", 	 p_stc_in->nf{x})
+				v_nr_solictransp 	 = pl_extrair_dados_struct("nr_solictransp", p_stc_in->nf{x})
+
+				;Validação de dados obrigatórios
+				if (v_cd_modulo   	 = "") throw -99999, "Código do módulo é um parâmetro obrigatório."
+				if (v_cd_unidade   	 = "") throw -99999, "Código da unidade é um parâmetro obrigatório."
+				if (v_nr_procfat 	 = "") throw -99999, "Número do processo de faturamento é um parâmetro obrigatório."
+				if (v_id_veiculo   	 = "") throw -99999, "Identificador do veículo é um parâmetro obrigatório."
+				if (v_nr_solictransp = "") throw -99999, "Número da solicitação de transporte é um parâmetro obrigatório."
+
+				;Condicional para validação de dados recuperados
+				if (v_cd_modulo > 0 & v_cd_unidade > 0 & v_nr_procfat > 0 & v_nr_solictransp > 0)
+				
+					;Validação e consulta de dados
+					v_nr_tentativas = 0
+					repeat
+						sleep 2000
+						v_ls_param = ""
+						putitem/id v_ls_param, "cd_modfat",  	 v_cd_modulo
+						putitem/id v_ls_param, "cd_unidfat", 	 v_cd_unidade
+						putitem/id v_ls_param, "nr_procfat", 	 v_nr_procfat
+						putitem/id v_ls_param, "nr_solictransp", v_nr_solictransp
+						activate "ctrao201".obtem_occ_retr("ctra_doctocarga", v_ls_param, v_ls_doctocarga, $t_ds_erro$)
+						#include LIB_COAMO:G_THROW_T_DS_ERRO
+						v_nr_tentativas += 1 
+					until (v_ls_doctocarga != "" | v_nr_tentativas = 10)
+
+					;Validação de retorno de dados da consulta
+					if (v_ls_doctocarga = "")
+						throw -99999, "Não foi encontrado o vínculo da nota fiscal com a carga da viagem do vale pedágio. (CTRA_DOCTOCARGA)."
+					endif
+	
+					;For em lista retornada
+					forlist v_ls_occ in v_ls_doctocarga
+						v_stc_param = $newstruct
+						v_stc_item  = $newstruct
+						v_stc_item->nr_solictransp 	  = v_nr_solictransp
+						v_stc_item->nr_carga       	  = pl_extrair_dados_lista("nr_carga", v_ls_occ)
+						v_stc_param->programacao{-1}  = v_stc_item
+
+						;Chamada de operation em outro componente para aplicação de regra
+						activate "ctrao322".opObterOrigemViagem(v_stc_param, v_stc_origemped, $t_ds_erro$)
+						#include LIB_COAMO:G_THROW_T_DS_ERRO ;VAlidação de erro com biblioteca
+
+						;Validação de estrutura da struct com Local Proc
+						if (!pl_validar_struct(v_stc_origemped, "OCC"))
+							throw -99999, "Registro da origem da viagem do vale pedágio não encontrado.(CTRA_ORIGEMPED)."
+						else ;Caso sem erro
+
+						    ;For em estrututa da struct
+							for y = 1 to v_stc_origemped->OCC->$collsize
+
+								;Atribuição de dados a variáveis
+								v_id_viagemped = pl_extrair_dados_struct("ID_VIAGEMPED", v_stc_origemped->OCC{y})
+								v_stc_param = $newstruct
+								v_stc_param->nm_componente   = v_nm_componente
+								v_stc_param->in_libsemcompra = v_in_libsemcompra
+
+								;Chamada de Local Proc para aplicação de regra
+								call plLiberarViagem("", "", v_id_viagemped, v_tp_creditoped, v_stc_param)
+							endfor
+						endif
+					endfor
+				endif
+			endfor
+		endif
+	catch
+		;Lançamento de exceção
+		call PL_EXCECAO_MSG($procerrorcontext)
+		return (<G_ERROEXEC>) ;Retorno com erro
+	endtry
+	
+	return (0) ;Retorno com sucesso
+end

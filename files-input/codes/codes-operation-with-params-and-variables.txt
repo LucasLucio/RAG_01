@@ -1,0 +1,68 @@
+operation opProcessarEnvioContingencia
+	params ;Definição de parâmetros
+		struct pStcDadosEnvio	: in
+		$t_ds_erro$				: out
+	endparams
+	variables ;Definiç~]ao de variáveis
+		string vStrContextoErro, vToken
+		struct vStcCredenciaisFila, vStcToken, vStcEnvio
+	endvariables
+
+	;Preparação para tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.opProcessarEnvioRegistroContingencia)"
+
+	;Validação de parâmetros obrigatórios nos nós de uma struct de entrada
+	if(pStcDadosEnvio->dados->$membercount <= 0)
+		$t_ds_erro$ = "É obrigatório informar dados a ser enviado para a fila. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	if (pStcDadosEnvio->fila = "")
+		$t_ds_erro$ = "É obrigatório informar o nome da fila para o envio. (%%vStrContextoErro%%%)"
+		return(<G_ERROEXEC>)
+	endif
+
+	;Chamada de Local Proc 
+	call plCredenciaisFila(pStcDadosEnvio->fila, vStcCredenciaisFila)
+	if ($status < 0) ;Tratamento de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	;Chamada de Local Proc 
+	call plAuth(vStcToken)
+	if ($status < 0) ;Tratamento de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	;validação do preenchimento de uma variável
+	if(vStcToken->access_token = "")
+		$t_ds_erro$ = "Houve uma falha ao obter o token de acesso ao Azure. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	;Obtenção de valor em nó de Struct
+	vToken = vStcToken->access_token
+
+	;Criação de Struct, e atribuição de valores em seus nós
+	vStcEnvio = $newstruct 
+	vStcEnvio->sbNamespace   = vStcCredenciaisFila->namespace
+	vStcEnvio->sbFila        = vStcCredenciaisFila->fila
+	vStcEnvio->token         = vToken
+	vStcEnvio->dados         = pStcDadosEnvio->dados
+
+	;Chamada de Local Proc 
+	call plEnviaRegistroFila(vStcEnvio, "", $t_ds_erro$)
+	#include lib_coamo:g_vld_erro ;tratamentop de erros com biblioteca de validação de erros
+
+	return (0) ;Retorno com sucesso da operation
+end

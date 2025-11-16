@@ -1,0 +1,17 @@
+operation plFormataTelefone
+	params;Definição de parâmetros
+		string nrTelefone	    :	in
+		string nrTelFormatado	:	out
+		$t_ds_erro$		:	out
+	endparams
+	variables ;Definição de variáveis
+		string nrFormatado
+	endvariables
+
+	;Formatação com replace em string
+	nrFormatado = $replace(nrTelefone, 1, "(", "", -1)
+	nrFormatado = $replace(nrTelefone, 1, "(", "", -1)
+	nrFormatado = $replace(nrTelefone, 1, "(", "", -1)
+
+	;Sai da operation sem falha
+end

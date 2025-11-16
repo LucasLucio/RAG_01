@@ -51,12 +51,12 @@ def define_files_need(question_files, prompt_input, files_in_rag, max_files=5):
     # Retornar os arquivos filtrados
     return filtered_files, files_supose
 
-def create_retriever(vectorstore, files_needed, steps: list):
-    if 'filter' in steps:
+def create_retriever(vectorstore, files_needed, steps: list, k=10):
+    if 'filter' in steps and files_needed and len(files_needed) > 0:
         filter_dict = {"source": {"$in": files_needed}}
         retriever = vectorstore.as_retriever(
             search_type="similarity",
-            search_kwargs={"k": 10, 'filter': filter_dict},
+            search_kwargs={"k": k, 'filter': filter_dict},
         )
     else:
         retriever = vectorstore.as_retriever(

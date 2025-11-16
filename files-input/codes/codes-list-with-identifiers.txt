@@ -1,0 +1,24 @@
+operation criaListaComIdentificador
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        string pDsPrimeiroNome    : IN   
+		string pDsSegundoNome     : IN    
+		string pDsTerceiroNome    : IN    
+		string pDsQuartoNome      : IN      
+        string  pDsResultado      : OUT 
+        $t_ds_erro$ : OUT
+    endparams
+
+	;Cria lista vazia
+	pDsResultado = ""
+
+	;Atribui valores a lista
+	putitem/id pDsResultado, "1" , pDsPrimeiroNome
+	putitem/id pDsResultado, "2" , pDsSegundoNome
+	putitem/id pDsResultado, "3" , pDsTerceiroNome
+	putitem/id pDsResultado, "4" , pDsQuartoNome
+
+
+	return (0) ;Retorna operação com sucesso
+
+end

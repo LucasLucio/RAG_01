@@ -1,0 +1,35 @@
+entry plDefinirTipoClassifica
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct p_stc_veiculo 		:IN
+		struct p_stc_hitCompveic	:INOUT
+		numeric p_nr_ordem 			:IN
+	endparams
+	variables ;Definição de variáveis
+		string v_ds_contexto, v_nr_placa_reboque01, v_nr_placa_reboque02, v_nr_placa_dolly
+		numeric v_nr_ordem
+	endvariables
+
+	;Preparação para retorno de erros
+	v_ds_contexto = "%%^%%%(<$componentname>, pl_definir_tp_classifica)"
+
+	;Atribuição dos valores de struc para variáveis
+	v_nr_placa_reboque01 = p_stc_hitCompveic->OCC{2}->NR_PLACA
+	v_nr_placa_reboque02 = p_stc_hitCompveic->OCC{3}->NR_PLACA
+	v_nr_placa_dolly     = p_stc_hitCompveic->OCC{4}->NR_PLACA
+
+	;Abertura selectcase
+	selectcase p_nr_ordem
+		case 1
+			p_stc_hitCompveic->OCC{p_nr_ordem}->TP_CLASSIFICA  =  3
+			if (v_nr_placa_reboque01 != "" | v_nr_placa_reboque02 != "" | v_nr_placa_dolly != "")
+				p_stc_hitCompveic->OCC{p_nr_ordem}->TP_CLASSIFICA  =  6
+			endif
+		case 4  
+			p_stc_hitCompveic->OCC{p_nr_ordem}->TP_CLASSIFICA  = 14
+		case 2, 3 
+			p_stc_hitCompveic->OCC{p_nr_ordem}->TP_CLASSIFICA  = 11
+	endselectcase
+
+	return(0)
+end

@@ -1,0 +1,37 @@
+entry plExemploNumeroMaior
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrPrimeiro     : IN
+		numeric pNrSegundo      : IN
+		string  pStrResultado   : OUT
+		$t_ds_erro$	            : OUT
+	endParams
+	variables
+		string vStrResultado
+	endvariables
+
+	;Trata entradas
+	if(pNrPrimeiro = "" | pNrSegundo = "")
+		$t_ds_erro$ = "É necessário informar os valores"
+		;Retorna com Falha
+		return(-99)
+	endif
+	
+	if(pNrPrimeiro = pNrSegundo)
+		vStrResultado = "Os números são iguais"
+	endif
+
+	if(pNrPrimeiro > pNrSegundo)
+		vStrResultado = "O numero %%pNrPrimeiro%%% é maior"
+	else
+		vStrResultado = "O numero %%pNrSegundo%%% é maior"
+	endif
+
+	;Atribui saída
+	pStrResultado = vStrResultado
+
+	
+	;Retorna Local Proc com sucesso
+	return(0)
+
+end

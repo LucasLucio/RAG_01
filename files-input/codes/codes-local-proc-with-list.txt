@@ -1,0 +1,44 @@
+entry plValidaCelular 
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		Numeric p_cd_ddd    : in
+		Numeric p_nr_fone    : in
+	endparams
+	variables
+		string v_ds_contexto, v_ls_input, v_ls_output
+		Boolean v_in_dddvalido, v_in_fonevalido
+	endvariables
+
+	;Configurações iniciais para tratamentos de erro
+	v_ds_Contexto = "<$componentname>.pl_vld_celular"
+
+	;Tratamento da lista para entrada dos valores
+	v_ls_input  = ""
+	v_ls_output = ""	
+	putitem/id v_ls_input, "TP_TELEFONE", 3
+	putitem/id v_ls_input, "CD_DDD", p_cd_ddd
+	putitem/id v_ls_input, "NR_FONE", p_nr_fone	
+
+	;Chamada da operation com valores de lista no parâmetro de entrada
+	activate "gpeso059".valida_telefone(v_ls_input, v_ls_output, $t_ds_erro$)
+	if ($status < 0) ;Tratamento dos erros
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		endif
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<g_erroexec>) ;Retorno do erro
+	endif
+
+	;Obtenção de valores da lista de retorno da operation chamada
+	v_in_dddvalido = $item("in_ddd_valido", v_ls_output)
+	v_in_fonevalido = $item("in_fone_valido", v_ls_output)
+
+	;Condicional para verificação da regra e tratativa do retorno
+	if (!v_in_dddvalido | !v_in_fonevalido)
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<G_ERROEXEC>) ;Retorno com erro
+	endif
+
+	;Retorno com sucesso
+	return(0)
+end

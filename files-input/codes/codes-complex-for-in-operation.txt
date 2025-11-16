@@ -1,0 +1,354 @@
+operation gravaMotorista
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		$t_tp_operador$            : in
+		$t_cd_operador$            : in
+		String p_ls_input          : in
+		$t_ds_erro$                : out
+	endparams
+	variables
+		string v_ds_contexto, v_ls_occpessoa, v_ls_occpessoafis, v_ls_occmotorista, v_ls_param, v_ls_hitfone, v_ls_occfone
+		numeric v_tp_manutencao, v_usuario_lfre
+		boolean v_in_possui_pessoa, v_in_grava_pessoa, v_in_possui_pessoafis, v_in_grava_pessoafis, v_in_possui_motorista, v_in_grava_motorista
+		string v_nr_cpfmot, v_nm_pessoa, v_tp_sexo, v_nr_cnh, v_nr_rg
+		numeric v_cd_estcivil, v_cd_ddd, v_nr_fone, v_nr_sequencia
+		String v_ds_chave, v_ds_valor
+	endvariables  
+
+	;Inicialização para tratamento de erro  
+	v_ds_contexto = "<$componentname>.GRAVA_MOTORISTA_COMPLETO"
+	
+	;Incialização de variáveis para processamento
+	v_nr_cpfmot       = $item("nr_cpfmot", p_ls_input)
+	v_nm_pessoa       = $item("nm_pessoa", p_ls_input)
+	v_tp_sexo         = $item("tp_sexo", p_ls_input)
+	v_nr_cnh          = $item("nr_cnh", p_ls_input)
+	v_nr_rg           = $item("nr_rg", p_ls_input)
+	v_cd_estcivil     = $item("cd_estcivil", p_ls_input)
+	v_cd_ddd          = $item("cd_ddd", p_ls_input)
+	v_nr_fone         = $item("nr_fone", p_ls_input)
+	v_nr_sequencia    = $item("nr_sequencia", p_ls_input)
+	v_usuario_lfre    = $item("v_usuario_lfre", p_ls_input) ;0 = Não é usuário LFRE, 1 = É usuário LFRE
+
+	;Inicialização de variável
+	if(v_usuario_lfre = "")
+		v_usuario_lfre = 0 ;DEFAULT = 0; 
+	endif
+
+	;Validação de campos obrigatórios
+	if ($t_tp_operador$ = "")
+		$t_ds_erro$ = "Tipo do operador é obrigatório (%%v_ds_contexto%%%)."
+		return(<g_erroexec>)
+	endif
+	if ($t_cd_operador$ = "")
+		$t_ds_erro$ = "Código do operador é obrigatório (%%v_ds_contexto%%%)."
+		return(<g_erroexec>)
+	endif
+	if (v_nr_cpfmot = "")
+		$t_ds_erro$ = "CPF do motorista é obrigatório (%%v_ds_contexto%%%)."
+		return(<g_erroexec>)
+	endif
+	
+	;Validação de dados obrigatórios
+	if(v_usuario_lfre = 0)
+		if (v_nr_cnh = "")
+			$t_ds_erro$ = "Carteira nacional de habilitação (C.N.H) do motorista é obrigatório (%%v_ds_contexto%%%)."
+			return(<g_erroexec>)
+		endif
+		if (v_nr_rg = "")
+			$t_ds_erro$ = "R.G do motorista é obrigatório (%%v_ds_contexto%%%)"
+			return(<g_erroexec>)
+		endif
+		if (v_cd_ddd = "")
+			$t_ds_erro$ = "Código de área do celular do motorista é obrigatório (%%v_ds_contexto%%%)."
+			return(<g_erroexec>)
+		endif
+		if (v_nr_fone = "")
+			$t_ds_erro$ = "Número do celular do motorista é obrigatório (%%v_ds_contexto%%%)."
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Chamada de Local Proc para validação de dado
+	call pl_vld_celular(v_cd_ddd, v_nr_fone)
+	if ($status < 0) ;Validação de erro da chamada
+		$t_ds_erro$ = "%%$t_ds_erro$%%% (%%v_ds_contexto%%%)"
+		return(<G_erroexec>)
+	endif
+	
+
+	; Consulta de dado em operation de outro componente
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	activate "gpeso050".obtem_occ_pk_serro("gpes_pessoa", v_ls_param, v_in_possui_pessoa, v_ls_occpessoa, $t_ds_erro$)
+	if ($status < 0) ;Validação de erro
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		return(<g_erroexec>)
+	endif
+
+	;Valida dados para processamento da gravação
+	if (v_ls_occpessoa = "" | (v_nm_pessoa != $item("nm_pessoa", v_ls_occpessoa) & v_usuario_lfre = 0))
+		putitem/id v_ls_occpessoa, "nm_pessoa", v_nm_pessoa
+		v_in_grava_pessoa = <g_true>
+	endif
+
+	;For com lista utilizando identificador de item
+	forlist /id v_ds_chave, v_ds_valor in p_ls_input
+		;Processamento dos dados do registro
+		selectcase $lowercase(v_ds_chave)
+			case "dt_nascimento"
+				if ($date(v_ds_valor) != $date($item(v_ds_chave, v_ls_occpessoa)))
+					putitem/id v_ls_occpessoa, v_ds_chave, $date(v_ds_valor)
+					v_in_grava_pessoa = <g_true>
+				endif
+			case "ds_endereco", "nr_endereco", "ds_bairro", "cd_cep", "cd_municipio"
+				v_ds_valor = $uppercase(v_ds_valor)
+				if (v_ds_valor != $item(v_ds_chave, v_ls_occpessoa))
+					putitem/id v_ls_occpessoa, v_ds_chave, v_ds_valor
+					v_in_grava_pessoa = <g_true>
+				endif
+		endselectcase
+	endfor
+
+	;Gravação dos dados de pessoa
+	if (v_in_grava_pessoa)
+		putitem/id v_ls_occpessoa, "tp_pessoa", 1 ; física
+		putitem/id v_ls_occpessoa, "cd_operador", $t_cd_operador$
+		putitem/id v_ls_occpessoa, "nr_cpfcnpj", v_nr_cpfmot
+		activate "gpeso019".valida_pessoa(v_ls_occpessoa, $t_ds_erro$)
+		if ($status < 0) ; Validação de erro
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			return(<g_erroexec>)
+		endif
+	endif
+		
+	Preparação de dados para gravação de pessoa física
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	activate "gpeso050".obtem_occ_pk_serro("gpes_pessoafis", v_ls_param, v_in_possui_pessoafis, v_ls_occpessoafis, $t_ds_erro$)
+	if ($status < 0) ;Validação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		return(<g_erroexec>)
+	endif
+
+	;Valida dados para gravação
+	if (v_ls_occpessoafis = "" | v_nr_cnh != $item("nr_cnh", v_ls_occpessoafis) | v_nr_rg != $item("nr_rg", v_ls_occpessoafis))
+		putitem/id v_ls_occpessoafis, "nr_cnh", v_nr_cnh
+		putitem/id v_ls_occpessoafis, "nr_rg", v_nr_rg
+		v_in_grava_pessoafis = <g_true>
+	endif
+
+	;For com lista utilizando identificador de item
+	forlist /id v_ds_chave, v_ds_valor in p_ls_input
+		;Processamewnto do dado para gravação
+		v_ds_valor = $uppercase(v_ds_valor)
+		if ($lowercase(v_ds_chave) = "cd_ufrg" & v_ds_valor != $item(v_ds_chave, v_ls_occpessoafis))
+			putitem/id v_ls_occpessoafis, v_ds_chave, v_ds_valor
+			v_in_grava_pessoafis = <g_true>
+		endif
+	endfor
+
+	;Gravação do dado de pessoa física
+	if (v_in_grava_pessoafis)
+		putitem/id v_ls_occpessoafis, "cd_operador", $t_cd_operador$
+		putitem/id v_ls_occpessoafis, "nr_cpfcnpj", v_nr_cpfmot
+		activate "gpeso043".valida_pessoafis(v_ls_occpessoafis, $t_ds_erro$)
+		if ($status < 0) ;Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			return(<g_erroexec>)
+		endif
+		call pl_vld_cnhmotorista(v_nr_cpfmot, v_nr_cnh)
+		if ($status < 0)
+			done
+		endif
+	endif
+	
+	;Validação dos dados de motorista
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpf", v_nr_cpfmot
+	activate "gpeso050".obtem_occ_pk_serro("gpes_motorista", v_ls_param, v_in_possui_motorista, v_ls_occmotorista, $t_ds_erro$)
+	if ($status < 0) ;Verificação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		return(<g_erroexec>)
+	endif
+	putitem/id v_ls_occmotorista, "nr_cpf", v_nr_cpfmot
+	putitem/id v_ls_occmotorista, "in_inativo", <g_false>
+	putitem/id v_ls_occmotorista, "cd_operador", $t_cd_operador$    
+	if (!v_in_possui_motorista)
+		v_in_grava_motorista = <G_TRUE>
+	endif
+
+	;For com lista utilizando identificador de item
+	forlist /id v_ds_chave, v_ds_valor in p_ls_input
+		;Processamento do dado
+		v_ds_valor = $uppercase(v_ds_valor)
+		if ($lowercase(v_ds_chave) = "nr_cartaoped" & v_ds_valor != $item(v_ds_chave, v_ls_occmotorista))
+			putitem/id v_ls_occmotorista, v_ds_chave, v_ds_valor
+			v_in_grava_motorista = <g_true>
+		endif
+	endfor
+	
+	;Gravação do registro de pessoa
+	if (v_in_grava_pessoa)
+		if (!v_in_possui_pessoa)
+			v_tp_manutencao = 1
+		else
+			v_tp_manutencao = 2
+		endif      
+		;Chamada de operation em outro componente para gravação   
+		activate "gpeso019".grava_pessoa(v_tp_manutencao, v_ls_occpessoa, $t_ds_erro$)
+		if ($status < 0) ; Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Gravação do registro de pessoa física
+	if (v_in_grava_pessoafis)
+		if (!v_in_possui_pessoafis)
+			v_tp_manutencao = 1
+		else
+			v_tp_manutencao = 2
+		endif        
+		;Chamada de operation em outro componente para gravação   
+		activate "gpeso043".grava_pessoafis(v_tp_manutencao, v_ls_occpessoafis, $t_ds_erro$)
+		if ($status < 0) ;Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Gravação de registro do motorista
+	if (v_in_grava_motorista)
+		if (!v_in_possui_motorista)
+			v_tp_manutencao = 1
+		else
+			v_tp_manutencao = 2
+		endif
+		;Chamada de operation em outro componente para gravação   
+		activate "gpeso055".grava_motorista(v_tp_manutencao, v_ls_occmotorista, $t_ds_erro$)
+		if ($status < 0);Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+	endif
+	
+	;Verificação de informações para registro de contato do motorista
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	putitem/id v_ls_param, "nr_sequencia", v_nr_sequencia
+	if (v_nr_cpfmot != "" & v_nr_sequencia != "")
+		;Recupera o celular já existente, consultando em operation de outro componente
+		activate "gpeso050".obtem_occ_pk("gpes_fone", v_ls_param, v_ls_occfone, $t_ds_erro$)
+		if ($status < 0) ; Validação de erros
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+
+		;Obtenção dos valores
+		putitem/id v_ls_occfone, "tp_telefone", 3 ; celular do motorista
+		putitem/id v_ls_occfone, "cd_ddd", v_cd_ddd
+		putitem/id v_ls_occfone, "nr_fone", v_nr_fone
+		putitem/id v_ls_occfone, "in_smscargaon", <g_true>
+		putitem/id v_ls_occfone, "tp_operador", $t_tp_operador$
+		putitem/id v_ls_occfone, "cd_operador", $t_cd_operador$
+		v_tp_manutencao = 2 ; alteração
+	else
+		;Caso negativo do condicional
+		putitem/id v_ls_param, "tp_telefone", 3 ; celular do motorista
+		putitem/id v_ls_param, "cd_ddd", v_cd_ddd
+		putitem/id v_ls_param, "nr_fone", v_nr_fone
+		activate "gpeso050".obtem_occ_retr_lim("gpes_fone", v_ls_param, 1, v_ls_occfone, $t_ds_erro$)
+		if ($status < 0);Validação de erro da chamada
+			if ($status != <g_erroexec>)
+				call pl_erro_comando($procerrorcontext)
+			endif
+			rollback
+			return(<g_erroexec>)
+		endif
+		;Obtem o primeiro registro da lista
+		v_ls_occfone = $itemnr(1, v_ls_occfone)        
+		if (v_ls_occfone != "")
+			putitem/id v_ls_occfone, "in_smscargaon", <g_true>
+			v_tp_manutencao = 2 ; alteração
+		else
+			putitem/id v_ls_occfone, "nr_cpfcnpj", v_nr_cpfmot
+			putitem/id v_ls_occfone, "tp_telefone", 3 ; celular do motorista
+			putitem/id v_ls_occfone, "cd_ddd", v_cd_ddd
+			putitem/id v_ls_occfone, "nr_fone", v_nr_fone
+			putitem/id v_ls_occfone, "in_smscargaon", <g_true>
+
+			v_tp_manutencao = 1 ; inclusão
+		endif
+		putitem/id v_ls_occfone, "tp_operador", $t_tp_operador$
+		putitem/id v_ls_occfone, "cd_operador", $t_cd_operador$
+	endif
+
+	;Chamada de operation em outro componente para gravação   
+	activate "gpeso059".grava_fone(v_tp_manutencao, v_ls_occfone, $t_ds_erro$)
+	if ($status < 0) ;Validação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		$t_ds_erro$ = "%%$t_ds_erro$%%% %%v_nr_sequencia%%% (%%v_ds_contexto%%%)"
+		rollback
+		return(<g_erroexec>)
+	endif
+	
+	;Consulta os dados de contato do motorista
+	v_ls_param = ""
+	putitem/id v_ls_param, "nr_cpfcnpj", v_nr_cpfmot
+	putitem/id v_ls_param, "tp_telefone", 3 ; celular do motorista    
+	putitem/id v_ls_param, "in_smscargaon", <g_true> ; autoriza envio de mensagem por celular
+	activate "gpeso050".obtem_occ_retr("gpes_fone", v_ls_param, v_ls_hitfone, $t_ds_erro$)
+	if ($status < 0) ;Validação de erros
+		if ($status != <g_erroexec>)
+			call pl_erro_comando($procerrorcontext)
+		endif
+		rollback
+		return(<g_erroexec>)
+	endif
+	;Processa registro em while para desmarcar atributo
+	while ($itemnr(1, v_ls_hitfone) != "")
+		v_ls_occfone = $itemnr(1, v_ls_hitfone)
+		if ($item("cd_ddd", v_ls_occfone) != v_cd_ddd | $item("nr_fone", V_ls_occfone) != v_nr_fone)
+			putitem/id v_ls_occfone, "in_smscargaon", <g_false>
+			putitem/id v_ls_occfone, "cd_operador", $t_cd_operador$
+
+			;Chamada de operation em outro componente para gravação   
+			activate "gpeso059".grava_fone(2, v_ls_occfone, $t_ds_erro$)
+			if ($status < 0) ;Validação de erros
+				if ($status != <g_erroexec>)
+					call pl_erro_comando($procerrorcontext)
+				endif
+				rollback
+				return(<g_erroexec>)
+			endif
+		endif
+		delitem v_ls_hitfone, 1 ;Remove registro da lista de conulsta realizada
+	endwhile        
+	commit ;Realiza commit de transações
+	return(0) ;Retorna com sucesso
+end

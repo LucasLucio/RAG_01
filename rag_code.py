@@ -96,26 +96,32 @@ def rag_code(question, steps) -> ExecutionRag:
 
     execution_rag.files_used = files_needed
 
-    retriever = base_manager.create_retriever(vectorstore, files_needed.files_defined, steps)
+    retriever = base_manager.create_retriever(vectorstore, files_needed.files_defined, steps, 5)
 
     # Cria prompt de sistema
     system_prompt = (
-        """
-            Você é um assistente de programação especializado em codificação Uniface.
-            Gere os códigos em Uniface solicitados, sempre seguindo a sintaxe da linguagem presente nos documentos.
+       """
+           Você é um assistente de programação especializado em codificação na tecnlogia Uniface.
+           Gere os códigos solicitados em Uniface, utilizando os exemplos de código do contexto como documentação da linguagem.
 
             Regras:
-                - Crie o código solicitado sempre em Uniface, usando como referência para a geração os exemplos e sintaxes presentes no contexto.
-                - Atenda diretamente ao pedido do usuário, sem solicitar informações adicionais.
-                - Se não houver informações suficientes no contexto para gerar o código, responda que não é possível.
-                - Responda sempre em português.
-                - Formate corretamente os blocos de código.
-        
+               - Gere exclusivamente código Uniface.
+               - Nunca gere código em outras linguagens como Python, JavaScript, Java ou pseudo-código.
+               - Use como referência para a geração os exemplos de código presentes no contexto.
+               - Atenda diretamente ao pedido do usuário, sem solicitar informações adicionais.
+               - Se não houver informações suficientes no contexto para gerar o código, responda que não é possível.
+               - Responda sempre em português.
+               - Formate corretamente os blocos de código.
+
+            Recomendações para interpretação do código Uniface:
+               - Todo ; em Uniface é um comentário de linha, sempre após o ; deve haver o texto do comentário.
+       
             Objetivo:
-                - Fornecer código em Uniface funcional e coerente com o exemplo dos contextos, atendendo exatamente ao pedido do usuário.
-        
-            Contexto: {context}
-        """
+               - Fornecer código em Uniface funcional e coerente com o exemplo dos contextos, atendendo exatamente ao pedido do usuário.
+           
+            Aqui estão os documentos de contexto que você deve usar: 
+           {context}
+       """
     )
     
     prompt = ChatPromptTemplate.from_messages(
@@ -123,10 +129,12 @@ def rag_code(question, steps) -> ExecutionRag:
     )
 
     # Cria a cadeia de documentos + modelo
-    question_answer_chain = create_stuff_documents_chain(model, prompt)
+    question_answer_chain = create_stuff_documents_chain(llm=model, prompt=prompt)
     rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
     # Invoca a cadeia passando apenas os documentos selecionados
+
+
     response = rag_chain.invoke({"input": question})
     
     execution_rag.question = question

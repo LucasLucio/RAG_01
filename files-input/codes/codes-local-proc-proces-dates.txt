@@ -1,0 +1,28 @@
+entry plDiasMes
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		Numeric p_dt_anomes    : in
+		Date p_dt_inicio        : in
+		Date p_dt_fim        : in
+		Numeric p_qt_dia_mes    : out
+		Numeric p_qt_dia_per    : out
+	endParams
+	variables
+		Date v_dt_fim
+	endVariables
+	
+	;Aplicação de regra nos valores
+	p_qt_dia_per = (p_dt_fim - p_dt_inicio) + 1
+	
+	;Condicional para verificação da regra
+	if(p_dt_anomes = 201605)
+		v_dt_fim = $datim("01/%%p_dt_anomes[5,6]%%%/%%p_dt_anomes[1,4]%%%") ;Cria data com os valores do paramentro de input
+		addMonths 1, v_dt_fim ;Adiciona mes na data
+		v_dt_fim = $result - 1d
+		p_qt_dia_mes = v_dt_fim[D]
+	else
+		p_qt_dia_mes = p_qt_dia_per
+	endIf
+	
+	return(0) ;Retorna Local Proc com sucesso
+end

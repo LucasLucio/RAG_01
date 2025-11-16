@@ -1,0 +1,20 @@
+operation verificaIdade
+	params  ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		Numeric pIdade : IN
+		String pCategoria : OUT
+	endParams
+
+	selectcase pIdade
+		case < 13
+			pCategoria = "Criança"
+		case < 18
+			pCategoria = "Adolescente"
+		case < 60
+			pCategoria = "Adulto"
+		elseCase
+			pCategoria = "Idoso"
+	endselectcase
+
+	return(0)
+end

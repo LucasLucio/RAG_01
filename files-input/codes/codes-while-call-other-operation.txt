@@ -1,0 +1,60 @@
+operation validaContrato
+	params  ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric p_cd_gpotransp: in
+		numeric p_nr_contrato: in
+		boolean p_in_esta: out
+		$t_ds_erro$: out
+	endparams
+	variables
+		string v_ds_contexto, v_ls_cdtransp, v_ls_param
+		numeric v_tp_situacao
+	endvariables
+	
+	;Inicialização de variáveis para tratamento de erros
+	v_ds_contexto = "<$componentname>, <$trigger>, esta_no_contrato"
+	
+	if (p_cd_gpotransp = "") ;Valida dados obrigatórios
+		$t_ds_erro$ = "Grupo de transportador é um parâmetro obrigatório (%%v_ds_contexto%%%)"
+		return(<g_erroexec>)
+	endif
+	
+	;Chama operation externa para conuslta dos dados
+	activate "cfreo039".ret_ls_transpgpo(p_cd_gpotransp, v_ls_cdtransp, $t_ds_erro$)
+	if ($status < 0)
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		endif
+		$t_ds_erro$ = $concat($t_ds_erro$, "(%%v_ds_contexto%%%)")
+		return(<g_erroexec>)
+	endif
+	
+	;Valida se houve retorno de dados
+	if (v_ls_cdtransp != "")
+		p_in_esta = <g_true>
+		
+		;Processa registros em while enquanto tiver dado
+		while (v_ls_cdtransp != "" & p_in_esta)
+
+			;Realiza chamda de operation externa
+			v_ls_param = ""
+			putitem/id v_ls_param, "nr_contrato", p_nr_contrato
+			putitem/id v_ls_param, "cd_transp", $itemnr(1, v_ls_cdtransp)
+			activate "cfreo002".obtem_field_pk_serro("cfre_transcontr", v_ls_param, "tp_situacao", "", v_tp_situacao, $t_ds_erro$)
+			if ($status < 0);Valida erros
+				if ($status != <g_erroexec>)
+					call pl_erro_cmdmsg($procerrorcontext)
+				endif
+				$t_ds_erro$ = $concat($t_ds_erro$, "(%%v_ds_contexto%%%)")
+				return(<g_erroexec>)
+			endif
+
+			;Define regra para continuação de processamento do while
+			p_in_esta = !(v_tp_situacao = 3 | v_tp_situacao = "")
+
+			delitem v_ls_cdtransp, 1 ;Deleta registro processado da lista de retorno
+		endwhile
+	endif
+	
+	return(0) ;Retorna com sucesso
+end

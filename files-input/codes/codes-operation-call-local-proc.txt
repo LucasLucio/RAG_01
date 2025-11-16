@@ -1,0 +1,15 @@
+operation opBuscaInfosUsuario
+	params ;Tratamento de parâmetros de entrada
+		struct pStcIn	:	in
+		struct pStcOut	:	out
+		$t_ds_erro$ 	:	out
+	endparams
+
+	;Chamada de Local Proc
+	call plBuscaInfosUsuario(pStcIn, pStcOut, $t_ds_erro$)
+	#include lib_coamo:g_vld_erro	 ;Inclusão de tratamento de erros da biblioteca de validação de erros
+
+	;Retorno de operation bem sucedida
+	return(0)
+
+end

@@ -1,0 +1,126 @@
+Entry plProcessarReservaAlimentos
+	params ;Parâmetros de entrada e saída 
+	;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_ls_input		: IN
+		string p_ls_output	: OUT
+		       $t_ds_erro$  : OUT
+	endparams	
+	Variables
+		Date v_dt_processo
+		String v_ls_resordcarr, v_occ_resordcarr
+		Handle v_instancia_CFREO047
+		Struct v_stc_input, v_stc_output, v_stc_ofertas, v_stc_ofertaspend, v_stc_oferta
+		Numeric v_nr_pos
+		Time v_hr_expiracao, v_hr_processamento
+	EndVariables
+
+	;Inicializa vairiáveis da função
+	v_dt_processo = $date
+	v_hr_expiracao   = $item("hr_expiracao", p_ls_input)
+	v_hr_processamento = $clock
+
+	;Cria nova instância para chamda de operation em outro componente
+	newinstance "CFREO047", v_instancia_CFREO047, "Transaction=TRUE"
+
+	;Inicializa variáveis 
+	$t_tp_operador$   = 1
+	$t_cd_operador$   = 1
+	v_stc_ofertas     = $newstruct
+	v_stc_ofertaspend = $newstruct
+
+	;Realiza consulta ao banco de dados
+	clear/e "ctra_resordcarr"
+	dt_embarque.ctra_resordcarr = "%%v_dt_processo"
+	st_reserva.ctra_resordcarr  = "2" ; Reservado
+	tp_segcarga.ctra_resordcarr = "1" ;alimentos
+	retrieve/e "ctra_resordcarr"
+
+	;Tratamento de erros da consulta
+	if ($status < 0 & $status != -2)
+		deleteinstance v_instancia_CFREO047
+		$t_ds_erro$ = "Falha ao ler dados da entidade CTRA_RESORDCARR com status %%$status"
+		return (<G_ERROEXEC>)
+	endif
+
+	;Tratamento de erros para retorno vazio da consulta
+	if ($status = -2)
+		deleteinstance v_instancia_CFREO047
+		clear/e "ctra_resordcarr"	
+		return (0)
+	endif
+
+	Posiciona registro na primeira ocorrencia encontrata da entidade consultada
+	setocc "ctra_resordcarr", -1
+	sort "ctra_resordcarr", "dt_trscria.ctra_resordcarr" ; Ordena registros pela data de criação, em ordme crescente
+
+	;For em entidade consultada para processar registro a registro
+	forentity "ctra_resordcarr"
+
+		;Atribui dados da entidade a uma lista
+		v_occ_resordcarr = ""
+		putitem/id v_occ_resordcarr, "id_motorista", id_motorista.ctra_resordcarr
+		putitem/id v_occ_resordcarr, "nr_versaoveic", nr_versaoveic.ctra_resordcarr
+		putitem/id v_occ_resordcarr, "nr_ofertafrt", nr_ofertafrt.ctra_resordcarr
+		putitem/id v_occ_resordcarr, "cd_transp", cd_transp.ctra_resordcarr
+		putitem v_ls_resordcarr, -1, v_occ_resordcarr
+
+	endfor
+
+	;Limpa entidade consultada
+	clear/e "ctra_resordcarr"
+
+	;For em lista criada com os dados dos registros consultados
+	forlist v_occ_resordcarr in v_ls_resordcarr
+
+		;Atribui dados a uma struct
+		v_stc_input                = $newstruct
+		v_stc_input->id_motorista  = $item("id_motorista", v_occ_resordcarr)
+		v_stc_input->nr_versaoveic = $item("nr_versaoveic", v_occ_resordcarr)
+		v_stc_input->nr_ofertafrt  = $item("nr_ofertafrt", v_occ_resordcarr)
+		v_stc_input->tp_operador   = $t_tp_operador$
+		v_stc_input->cd_operador   = $t_cd_operador$
+		v_stc_input->in_commit     = <G_TRUE>
+
+		;Realiza chamada a uma operation em outro componente chamando pela nova instancia criada acima
+		v_instancia_CFREO047->atualizarOferta(v_stc_input, v_stc_output, $t_ds_erro$)
+		if ($status < 0) ;Tratamento de erros
+			if ($status != <G_ERROEXEC>)
+				call PL_ERRO_CMDMSG ($procerrorcontext)
+			endif			
+		else ;Caso não tenha erro nenhum processa os dados
+			if (v_stc_output->oferta->st_oferta = 6) ; Confirmada
+				v_stc_oferta            = v_stc_output->oferta
+				v_stc_oferta->cd_transp = $item("cd_transp", v_occ_resordcarr)
+				v_stc_ofertas->*{-1}    = v_stc_oferta
+			elseif (v_stc_output->oferta->st_oferta = 1) ; Pendente
+				v_stc_oferta             = v_stc_output->oferta
+				v_stc_oferta->cd_transp  = $item("cd_transp", v_occ_resordcarr)
+				v_stc_ofertaspend->*{-1} = v_stc_oferta
+			endif
+		endif
+	endfor
+
+	;Percorre registros atualizados na struct criada, utilizando um while 
+	v_nr_pos     = 1
+	v_stc_oferta = v_stc_ofertas->*{v_nr_pos}
+	while (v_stc_oferta->$membercount > 0)
+
+		;Chama local proc para processar registro da struct
+		call PL_PROCESSAR_ITEMRES_ALIMENTOS(v_stc_oferta, v_dt_processo, v_hr_expiracao, v_hr_processamento)
+		;#include LIB_COAMO:G_VLD_ACTIVATE ; Validação de erro com biblioteca 
+		if ($status < 0)
+			if ($status != <G_erroexec>)
+				call pl_erro_cmdmsg($procerrorcontext)
+			endif			
+			deleteinstance v_instancia_CFREO047
+			return(<G_erroexec>)
+		endif
+		v_nr_pos     = v_nr_pos + 1
+		v_stc_oferta = v_stc_ofertas->*{v_nr_pos}
+	endwhile	
+
+	;Deleta instância criada anteriormente
+	deleteinstance v_instancia_CFREO047
+	 
+	return (0) ; Retorna com sucesso
+end

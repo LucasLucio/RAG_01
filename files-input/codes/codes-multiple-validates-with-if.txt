@@ -1,0 +1,43 @@
+entry plValidaPlaca
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_nr_placa    : IN
+		       $t_ds_erro$   : OUT
+	endparams
+	
+	variables
+		numeric v_nr_index, v_qt_letras, v_qt_numeros	
+		boolean v_in_valido
+	endvariables	
+
+	;Considicional para vericação dos dados obrigatórios
+	if (p_nr_placa = "")
+		$t_ds_erro$ = "A placa deve ser informada."
+		return (<G_ERROEXEC>)
+	endif
+
+	v_nr_index = 1
+
+	repeat
+		if (p_nr_placa[v_nr_index:1] = '&')
+			v_qt_letras += 1
+		elseif (p_nr_placa[v_nr_index:1] = '#')
+			v_qt_numeros += 1
+		endif
+
+		v_nr_index += 1
+	until (p_nr_placa[v_nr_index:1] = "")
+
+	;Condicional com uso de operador and e or
+	if ((v_qt_letras = 4 & v_qt_numeros = 3) | ((v_qt_letras = 3 & v_qt_numeros = 4) & p_nr_placa = '&&&####'))
+		v_in_valido = <G_TRUE>
+	endif
+
+	;COnsidicional para tratamento do retorno do resultado
+	if (!v_in_valido)
+		$t_ds_erro$ = "A placa informada '%%p_nr_Placa%%%' é inválida."
+		return (<G_ERROEXEC>)
+	endif
+
+	return (0) ;Retorno com sucesso
+end 

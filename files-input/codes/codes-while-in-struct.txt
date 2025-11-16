@@ -1,0 +1,53 @@
+operation consultaAceiteTermo
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		Numeric pNrTipoConsulta     : IN ;1 - CPF, 2 - Nome
+		String  pStrValorConsulta   : IN
+		struct  pStcOutput          : OUT
+		        $t_ds_erro$         : OUT
+	endparams
+	variables
+		struct v_stc_requisicao, v_stc_erro
+		string v_json_input, v_json_output, v_json_erro
+		Struct v_stc_output
+		String v_ds_contexto
+		numeric vTpIntegracao, i
+		struct vStcRoute, vStcInput, vStcOutput, vStcErro
+	endvariables
+
+	
+	;Prepara variáveis para consulta em operation de outro componente
+	vStcRoute             = ""
+	vStcRoute->controller = "termos-uso"
+	vStcRoute->service    = "usuarios"
+
+	vStcInput                 = ""
+	vStcInput->tipoConsulta   = pNrTipoConsulta
+	vStcInput->valorConsulta  = pStrValorConsulta
+
+
+	;Chama operation de consulta em outro componente
+	activate "LFREO022".opRequestApiCoft(vStcRoute, vStcInput, vStcOutput, vStcErro, $t_ds_erro$ )
+	if ($status < 0);Valida erros da chamada
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		endif
+		return (<G_ERROEXEC>)
+	endif
+
+	i = 1 ; Define inicializador do while
+
+	;While com daods de uma struct
+	while(i <= vStcOutput->resultados->$membercount) ;Percorre os membros da struct
+		;Atricui valores ao retorno
+		vStcOutput->resultados->*{i}->dataAceite = PARSEISODATETIME(vStcOutput->resultados->*{i}->dataAceite)
+		vStcOutput->resultados->*{i}->aceite = $number(vStcOutput->resultados->*{i}->aceite)
+		i += 1
+	endwhile ;Finaliza while
+	
+	;Atribui retorno
+	pStcOutput = vStcOutput
+
+	return (0) ; Retonra com sucesso
+
+end

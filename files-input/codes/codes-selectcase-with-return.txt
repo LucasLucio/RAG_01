@@ -1,0 +1,33 @@
+entry plBuscaAgronomo
+    params  ;Parâmetros de entrada e saída 
+        ;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+    numeric p_tp_agronomo : IN
+    numeric p_cd_agronomo : IN
+    string  p_nm_agronomo : OUT
+    endparams
+
+   ;Abertura do selectcase
+   selectcase p_tp_agronomo
+      case 4
+		;Consulta dos dados e retorno 
+         clear/e "gpes_fornecedor_v"
+         cd_fornecedor.gpes_fornecedor_v/init = p_cd_agronomo
+         retrieve/e "gpes_fornecedor_v"
+         if ($status < 0)
+            call PL_ERRO_TRIGGER
+            return(<G_ERROEXEC>)   
+         endif   
+         p_nm_agronomo = nm_pessoa.gpes_fornecedor_v
+      case 7   
+		 ;Consulta dos dados e retorno
+         clear/e "gpes_agrocoamo_v"
+         cd_agronomo.gpes_agrocoamo_v/init = p_cd_agronomo
+         retrieve/e "gpes_agrocoamo_v" 
+         if ($status < 0)
+            call PL_ERRO_TRIGGER
+            return(<G_ERROEXEC>)   
+         endif   
+         p_nm_agronomo = nm_pessoa.gpes_agrocoamo_v
+   endselectcase
+   return(0) ;Retorno com sucesso
+end

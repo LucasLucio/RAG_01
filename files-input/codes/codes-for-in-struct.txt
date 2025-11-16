@@ -1,0 +1,44 @@
+operation buscarCvc
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		struct pStcCvc	: OUT
+		$t_ds_erro$		: OUT
+	endparams
+	variables
+		struct vStcCvcCoamo, vStcRegistroCvc
+		string vStrContextoErro
+		numeric vLoopIndex
+	endvariables
+
+	;Inicialização de variáveis para tratamento de erros
+	vStrContextoErro = "(%%$componentname%%%.buscarCvc)"
+
+	;Realiza conuslta dos dados em chamda de operation em outro componente
+	activate "CTRAO188".obterCVCCOAMO(vStcCvcCoamo, $t_ds_erro$)
+	if($status < 0) ;Trata erros
+		if($status != -2)
+			$t_ds_erro$ = "Erro ao consultar os dados de cvc. %%vStrContextoErro%%%"
+			return(<G_ERROEXEC>)
+		endIf
+	endIf
+
+	;Repetição com for em nós de uma struct
+	for vLoopIndex = 1 to vStcCvcCoamo->$membercount
+		;Cria struct para guardar dados
+		vStcRegistroCvc = $newstruct
+
+		;Atribui dados a struct
+		vStcRegistroCvc->identificadorParametro                = $newstruct
+		vStcRegistroCvc->identificadorParametro->entidade      = "CTRA_CVC"
+		vStcRegistroCvc->identificadorParametro->atributo      = "ID_CVC"
+		vStcRegistroCvc->identificadorParametro->identificador = vStcCvcCoamo->*{vLoopIndex}->CD_CVC
+
+		vStcRegistroCvc->descricao = vStcCvcCoamo->*{vLoopIndex}->DS_CVC
+		vStcRegistroCvc->tipo      = 6 ; parametro integracao cvc
+
+		;Adiciona struct dos dados a struct do retorno
+		pStcCvc->*{-1} = vStcRegistroCvc
+	endfor
+
+	return (0) ; Finaliza com sucesso
+end

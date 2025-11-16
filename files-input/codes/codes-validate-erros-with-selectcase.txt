@@ -1,0 +1,25 @@
+entry plErroWeb
+	params  ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pCdErro     : in
+		string  pDsErro     : in
+		struct  pStcOutErro : out
+	endparams
+
+	pStcOutErro = $newstruct
+
+	;Abertura select case
+	selectcase pCdErro
+		case -201
+			pStcOutErro->cdErro = pCdErro*-1
+			pStcOutErro->dsErro = pDsErro
+		case -403
+			pStcOutErro->cdErro = pCdErro*-1
+			pStcOutErro->dsErro = pDsErro
+		elsecase 
+			pStcOutErro->cdErro = 201
+			pStcOutErro->dsErro = pDsErro
+	endselectcase
+
+	return(0) ;Tratamento do retorno
+end; 

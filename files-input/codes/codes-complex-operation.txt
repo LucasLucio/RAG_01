@@ -1,0 +1,161 @@
+operation processarRegistrosEnvio
+	params ;Definição de parâmetros
+		Struct pDados     		    : IN
+		String pFila        		: IN
+		Numeric pModoEnvio     		: IN ;1 - Unitário, 2 - Multiplo
+		Numeric pQtdEnvio     		: IN ;Quantidade de objetos por envio (se multiplo)
+		boolean pConfirmaEnvio 		: IN 
+		struct  pConfirmados		: OUT
+		$t_ds_erro$	                : OUT
+	endParams
+	variables ;Definição de variáveis
+		String	vStrContextoErro, vStrResult, vStrHeader, vStrUrlTemp, vStrUrlFila, vToken, vJsonEnvio
+		Struct	vStcTemp, vStcToken, vStcCredenciaisFila, vStcEnvio, vStcIn, vStcOut, vStcMensagemErro
+		Numeric vNrItem, vNrObjetos, vNrChaveContingencia, vNrCodOperador
+	endVariables
+
+	;Preparação para tratamento de erros
+	vStrContextoErro	= "(%%$componentname%%%.processarRegistrosEnvio)"
+	vStcTemp			= ""
+	$t_ds_erro$			= ""
+	vNrCodOperador 		= 999999
+
+	;Tratamento de variáveis obrigatórias
+	if(pDados->$membercount <= 0)
+		$t_ds_erro$ = "É obrigatório informar um valor para ser enviado para a fila. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endif
+
+	if(pFila = "")
+		$t_ds_erro$ = "É obrigatório informar o nome da fila para o envio. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endIf
+
+	if(pModoEnvio = "")
+		$t_ds_erro$ = "É obrigatório informar o modo de envio do registro para a fila. %%vStrContextoErro%%%"
+		return(<G_ERROEXEC>)
+	endIf
+
+	if(pModoEnvio = 2)
+		if(pQtdEnvio = "" | pQtdEnvio = 0)
+			pQtdEnvio = 1
+		endIf
+	endIf
+
+	;Chamada de execução de outra operation em outro componente 
+	activate "LFREO055".opBuscaValorContingencia(vNrChaveContingencia, $t_ds_erro$)
+	if ($status < 0)
+		vNrChaveContingencia = 0 
+
+	;Chamda de Local Proc
+	call plCredenciaisFila(pFila, vStcCredenciaisFila)
+	if ($status < 0)
+		if ($status != <g_erroexec>)
+			call pl_erro_cmdmsg($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endIf
+		return(<g_erroexec>)
+	endIf
+
+	;Condicional para tratativa do processamento
+	if(pDados->$membercount > 0)
+		call plAuth(vStcToken)
+		if ($status < 0)
+			if ($status != <g_erroexec>)
+				call pl_erro_cmdmsg($procerrorcontext)
+			else
+				$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+			endIf
+			return(<g_erroexec>)
+		endIf
+		
+		;Tratamento do preenchimeto de variável
+		if(vStcToken->access_token = "")
+			$t_ds_erro$ = "Houve uma falha ao obter o token de acesso ao Azure. %%vStrContextoErro%%%"
+			return(<G_ERROEXEC>)
+		endif
+
+		vToken = vStcToken->access_token
+
+		vStcIn = $newstruct 
+		vStcIn->sbNamespace   = vStcCredenciaisFila->namespace
+		vStcIn->sbFila        = vStcCredenciaisFila->fila
+		vStcIn->token         = vToken
+
+		if(pModoEnvio = 1)
+
+			;Conversão de struct para Json (como uma string)
+			structToJson vJsonEnvio, pDados
+			vStcIn->dados         = vJsonEnvio
+
+			if (vNrChaveContingencia = 1) ; contingencia ligada
+				activate "LFREO055".opGravarEnvioFila(vStcIn->sbNamespace, pFila, vStcIn->dados, vNrCodOperador, $t_ds_erro$)
+			else
+				call plEnviaRegistroFila(vStcIn, vStcOut, $t_ds_erro$)
+			endif
+
+			;Tratamento de erros
+			if ($status < 0)
+				vStcMensagemErro = $newstruct
+				vStcMensagemErro->identificador = vStcIn->dados
+				vStcMensagemErro->method = "LFREO008 -> processarRegistrosEnvio"
+				vStcMensagemErro->erro = "%%$t_ds_erro$%%% - %%vStrContextoErro"
+				activate "LFREO056".opGravarLogObservabilidade(vStcMensagemErro, vNrCodOperador, $t_ds_erro$)
+			endif
+
+			;Condicional para tratativa de processamento
+			if(pConfirmaEnvio = <G_TRUE> & $status >= 0)
+				pConfirmados = pDados
+			endif
+
+		else ;Caso else de condicional if
+
+			;Criação de struct
+			vStcEnvio = $newstruct
+			vStcEnvio->$tags->jsonClass = "array" ;Definição de nó da struct como Array
+
+			;Laço de repetição FOR em itens de uma struct
+			for vNrItem = 1 to pDados->$membercount ;$membercount contabiliza os membros de uma struct em seu nó selecionado
+				vNrObjetos = vNrObjetos + 1
+				vStcEnvio->*{-1} = pDados->*{vNrItem}
+
+				if(vNrObjetos >= pQtdEnvio)
+
+					;Conversão de struct para Json (como uma string)
+					structToJson vJsonEnvio, vStcEnvio
+					vStcIn->dados         = vJsonEnvio
+
+					if (vNrChaveContingencia = 1)
+						;Chamda de operation em outro componente
+						activate "LFREO055".opGravarEnvioFila(vStcIn->sbNamespace, pFila, vStcIn->dados, vNrCodOperador, $t_ds_erro$)
+					else
+						;Chamada de Local Proc no mesmo componente
+						call plEnviaRegistroFila(vStcIn, vStcOut, $t_ds_erro$)
+					endif
+
+					if ($status < 0)
+						vStcMensagemErro = $newstruct
+						vStcMensagemErro->identificador = vStcIn->dados
+						vStcMensagemErro->method = "LFREO008 -> processarRegistrosEnvio"
+						vStcMensagemErro->erro = "%%$t_ds_erro$%%% - %%vStrContextoErro"
+						activate "LFREO056".opGravarLogObservabilidade(vStcMensagemErro, vNrCodOperador, $t_ds_erro$)
+					endif
+
+					if(pConfirmaEnvio = <G_TRUE> & $status >= 0)
+						pConfirmados->*{-1} = vStcEnvio->*{-1}
+					endif
+					
+					vStcEnvio = $newstruct ;Criação de Struct em variável do tipo struct
+					vStcEnvio->$tags->jsonClass = "array"  ;Definição de nó da struct como Array
+
+					vNrObjetos = 0
+
+				endif ;Finalização de condicional IF
+			endfor ;Finalização de laço de repetição
+		endif ;Finalização de condicional IF
+	endif ;Finalização de condicional IF
+
+	return(0) ;Retorno de saída com sucesso da operation
+
+end 

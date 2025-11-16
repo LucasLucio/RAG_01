@@ -1,0 +1,67 @@
+entry plObterHorarioCotacao
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		string p_ls_input       : IN
+		string p_ls_output      : OUT
+		       $t_ds_erro$      : OUT 
+	endparams
+
+	variables
+		numeric  v_tp_horario, v_tp_frota
+		time     v_dt_horario
+		datetime v_dt_vigaux
+	endvariables
+
+	;Atribui a variavel o valor da lista
+	v_tp_horario = $item("tp_horario", p_ls_input)
+	v_tp_frota   = $item("tp_frota", p_ls_input)
+
+	;Condicionais para verificação de dado obrigatório
+	if (v_tp_horario = "")
+		$t_ds_erro$ = "O tipo de horário deve ser iformado"
+		return (<G_ERROEXEC>)
+	endif
+
+	if (v_tp_frota = "")
+		$t_ds_erro$ = "O tipo de frete deve ser informado"
+		return (<G_ERROEXEC>)
+	endif
+
+	;Realiza consulta ao banco de dados
+	selectdb max(dt_vigencia) from "ctra_horariocot" u_where %\
+		tp_horariocot.ctra_horariocot = v_tp_horario &        %\
+		tp_frota.ctra_horariocot      = v_tp_frota &          %\
+		dt_vigencia.ctra_horariocot  <= $datim                %\
+		to v_dt_vigaux
+	
+	;Condicional para verificação de falha na consulta
+	if ($status < 0)
+		call PL_ERRO_CMDMSG($procerrorcontext)
+		return (<G_ERROEXEC>)
+	endif
+
+	;Realiza consulta ao banco de dados
+	clear/e "ctra_horariocot"
+	tp_horariocot.ctra_horariocot/init = v_tp_horario
+	tp_frota.ctra_horariocot/init      = v_tp_frota
+	dt_vigencia.ctra_horariocot/init   = v_dt_vigaux
+	retrieve/e "ctra_horariocot"
+
+	;Condicional para verificação de falha na consulta
+	if ($status < 0 & $status != -2)
+		$t_ds_erro$ = "Falha ao recuperar dados da entidade CTRA_HORARIOCOT com status %%$status"
+		return (<G_ERROEXEC>)
+	endif
+
+	;Condicional para verificação de dado retornado
+	if ($dbocc("ctra_horariocot"))
+		v_dt_horario = hr_referencia.ctra_horariocot[clock]
+	endif
+
+	p_ls_output = ""
+
+	;Preparação do retorno em lista
+	putitem/id p_ls_output, "hr_referencia", v_dt_horario
+
+	return (0) ; Retorno com sucesso
+end

@@ -1,0 +1,26 @@
+operation calculadora
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		numeric pNrPrimeiro  : IN
+		numeric pNrSegundo   : IN
+		string  pStrOperacao : IN
+		numeric pNrResultado : OUT
+	endParams
+
+	;Abertura select case
+	selectcase "soma"
+		case "soma"
+			pResultado = pNum1 + pNum2
+		case "subtracao"
+			pResultado = pNum1 - pNum2
+		case "divisao"
+			pResultado = pNum1 / pNum2
+		case "multiplicacao"
+			pResultado = pNum1 * pNum2
+		elseCase
+			pResultado = 0
+	endselectcase
+
+
+	return(0)
+end

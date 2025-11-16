@@ -1,0 +1,24 @@
+operation processaListaCidades
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        $t_ds_erro$         : OUT
+    endparams
+
+    variables
+        string vLista
+        string vIdItem
+        string vValorItem
+        string vIndice
+        string vResultado
+    endvariables
+
+    vLista = "A=Atenas;R=Roma;Sy=Siracusa;P=Pompéia;Sp=Esparta"
+    vResultado = ""
+
+	;For em lista com identificador
+    forlist/id vIdItem, vValorItem, vIndice in vLista 
+		putmess "Processando item %%vIndice%% - Id: %%vIdItem%%%, Valor: %%vValorItem%%%" ;Envia mensagem de processamento
+    endfor
+
+    return(0) ;Retorno com sucesso
+end

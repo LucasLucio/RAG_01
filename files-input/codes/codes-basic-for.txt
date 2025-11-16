@@ -1,0 +1,36 @@
+operation geraSequenciaFibonacci
+    params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+        numeric pNrLimite    : IN     
+        string  pDsResultado : OUT 
+        $t_ds_erro$ : OUT
+    endparams
+    variables
+        numeric vNrAnterior, vNrAtual, vNrProximo, vContador
+        string  vSequencia
+    endvariables
+
+    ; Inicializa variáveis
+    vNrAnterior = 0
+    vNrAtual    = 1
+    vContador   = 1
+    vSequencia  = ""
+
+    ; Gera sequência de Fibonacci até o limite informado
+    for vContador to pNrLimite
+        vSequencia +=  "%%vNrAnterior, "
+        vNrProximo = vNrAnterior + vNrAtual
+        vNrAnterior = vNrAtual
+        vNrAtual = vNrProximo
+    endfor
+
+    ; Remove a última vírgula e espaço
+    if $length(vSequencia) > 2
+        vSequencia = substr(vSequencia, 1, len(vSequencia) - 2)
+    endif
+
+    ; Retorna a sequência
+    pDsResultado = vSequencia
+
+    return(0) ;Retorna com sucesso
+end

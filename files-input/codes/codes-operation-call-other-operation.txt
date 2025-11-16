@@ -1,0 +1,38 @@
+Operation sincronizarSolicitacoes
+	params
+		$t_ds_erro$        : OUT
+	endparams
+	variables
+		struct vStcOportunidades
+		string vStrContextoErro
+		boolean vInComparacaoAtiva
+	endvariables
+
+	;Configurações iniciais para tratamentos de erro
+	vStrContextoErro = "(%%$componentname%%%.sincronizarSolicitacoes)"
+	$t_cd_operador$ = 1
+	
+	;Chama operation em componente CTRAO056
+	activate "CTRAO056".buscaSolicitacoes(1, $datim, vStcOportunidades, $t_ds_erro$)
+	;Tratamento de erro
+	if ($status < 0)
+		if ($status != <G_ERROEXEC>)
+			call PL_ERRO_CMDMSG ($procerrorcontext)
+		else
+			$t_ds_erro$ = "%%$t_ds_erro$%%% %%vStrContextoErro%%%"
+		endif
+
+		return (<G_ERROEXEC>)
+	endif
+
+	;Chama operation em componente LFREO050
+	activate "LFREO050".opBuscarValorChaveComparacao(vInComparacaoAtiva)
+	if (vInComparacaoAtiva)
+		;Chamada de função local do próprio componente
+		call plProcessarComComparacao(vStcOportunidades)
+	else
+		;Chamada de função local do próprio componente
+		call plProcessarSemComparacao(vStcOportunidades)
+	endif
+	return (0)
+end ; sincronizarSolicitacoes

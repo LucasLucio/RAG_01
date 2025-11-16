@@ -1,0 +1,89 @@
+ntry plAtualizaReserva
+	params
+		$t_ds_erro$ : Out
+	endparams
+	variables
+		date v_dt_processo
+		string v_nr_cpfmot
+		struct v_stc_input, v_stc_output
+	endvariables
+
+	;Busca reservas pendentes para a D+0 e D+1
+	v_dt_processo = "%%$date"
+
+	;Cria nova instancia para chamada de operação
+	newinstance "CFREO047", "CFREO047_PROCOFERTA", "Transaction=TRUE"
+
+	;Busca as reservas que são para atualizar
+	clear/e "ctra_resordcarr"
+	dt_embarque.ctra_resordcarr = v_dt_processo
+	st_reserva.ctra_resordcarr  = "12" ; Reservado
+	tp_segcarga.ctra_resordcarr = "2" 
+	retrieve/e "ctra_resordcarr"
+
+	;Valida erros de consulta
+	if ($status < 0 & $status != -2)
+		$t_ds_erro$ = "Falha ao ler dados da entidade CTRA_RESORDCARR com status %%$status"
+		goto Erro
+	endif
+
+	;Valida se encontrou registros
+	if ($status = -2)
+		clear/e "ctra_resordcarr"	
+	endif
+
+	;Define valores para os dados de operador
+	$t_tp_operador$   = 1
+	$t_cd_operador$   = 1
+
+	;Ordena em ordem crescente pela data de criação so registros
+	sort "ctra_resordcarr", "dt_trscria.ctra_resordcarr:a"
+
+	;Posiciona no primeiro registro encontrato
+	setocc "ctra_resordcarr", 1
+
+	;Realiza repetição enquando não tiver um erro, e ainda tiver registros encontrados na consulta
+	while ($status >= 0 & $dbocc("ctra_resordcarr"))
+
+		;Verifica se a instância criada ainda está ativa
+		if ($componentname("CFREO047_PROCOFERTA") = "")
+			newinstance "CFREO047", "CFREO047_PROCOFERTA", "Transaction=TRUE"	
+		endif
+
+		;Atribiu dados a struct 
+		v_stc_input                = $newstruct
+		v_stc_input->id_motorista  = id_motorista.ctra_resordcarr
+		v_stc_input->nr_versaoveic = nr_versaoveic.ctra_resordcarr
+		v_stc_input->nr_ofertafrt  = nr_ofertafrt.ctra_resordcarr
+		v_stc_input->tp_operador   = $t_tp_operador$
+		v_stc_input->cd_operador   = $t_cd_operador$
+
+		;Define operação para realizar commit de transação
+		v_stc_input->in_commit     = <G_TRUE>
+
+		;Realiza operação em outra operation em outro componente com instância separada 
+		activate "CFREO047_PROCOFERTA".atualizarOferta(v_stc_input, v_stc_output, $t_ds_erro$)
+		if ($status < 0) ;Validação de erros
+			if ($status != <G_ERROEXEC>)
+				call PL_ERRO_CMDMSG ($procerrorcontext)
+			endif
+		endif
+
+		;Posiciona conuslta no próximo registro
+		setocc "ctra_resordcarr", $curocc("ctra_resordcarr") + 1
+	endwhile
+
+	;Deleta instância no final do processamento
+	deleteinstance "CFREO047_PROCOFERTA"
+
+	return(0) ;Retorna com sucesso
+
+	Erro: ;Trecho referente ao processo de tratamento de erros
+
+	deleteinstance "CFREO047_PROCOFERTA" ;Deleta instância
+	$t_ds_erro$ = $concat($t_ds_erro$, " <PL_PROCESSAR_RESERVADO>") ;Atribui erro ao retorno
+
+	rollback ;Realiza rollback doda dados trabalhados
+
+	return (<G_ERROEXEC>) ;Retorna com erro
+end

@@ -1,0 +1,55 @@
+operation consultaOrdensProducao
+	params ;Parâmetros de entrada e saída 
+		;Tipo parâmetro - NomeParâmetro - Definição de entrada ou saída
+		$t_cd_operador$  : in  
+		string pLsInput  : in
+		string pLsOutput : out
+		$t_ds_erro$ : out
+	endparams
+	variables
+		string vDsContexto, vLsParams, vLsInput, vLsOutput, vLsOccMovtoOrdem
+		datetime vDtFim
+	endvariables
+	
+	;Inicialização de variáveis para tratamento de erros
+	vDsContexto = "%%^%%%(<$componentname>.ConsultaTela\ConsultaOrdensProd)"
+	
+	;While enquanto a variável da lista contiver algum valor
+	while (pLsInput != "")
+		getitem vLsOccMovtoOrdem, pLsInput, 1 ;Obtem registro prosicionado em primeiro
+
+		;Valida preenchimetno dos dados
+		if (cd_plantaprod.dummy = "")
+			;Atribui dados a campos
+			cd_plantaprod.dummy = $item("cd_plantaprod", vLsOccMovtoOrdem)
+			validatefield cd_plantaprod.dummy
+			id_pontoprod.dummy  = $item("id_pontoprod", vLsOccMovtoOrdem)
+			validatefield id_pontoprod.dummy
+			id_procprod.dummy   = $item("id_procprod", vLsOccMovtoOrdem)
+			validatefield id_procprod.dummy
+			cd_modulo.dummy     = $item("cd_modulo", vLsOccMovtoOrdem)
+			cd_produto.dummy    = $item("cd_produto", vLsOccMovtoOrdem)
+			validatefield cd_produto.dummy
+		endif	
+		
+		;VAlida se não é um registor vazio
+		if (!$empty("cind_movtordem_v"))
+			;Cria mais um registro na entidade abaixo do existente
+			creocc "cind_movtordem_v", -1
+		endif
+	
+		;Obtem os registros
+		getlistitems/occ vLsOccMovtoOrdem, "cind_movtordem_v"
+
+		;Realiza consulta na entidade
+		retrieve/a "cind_movtordem_v"
+			
+		;Deleta o primeiro registro da lista, posicionando para o próximo da execução
+		delitem pLsInput, 1
+	endwhile 
+	
+	;Chama Local Proc para processamento de interface
+	call plInterfaceCampos
+
+	return(0);Retorna com sucesso
+end
