@@ -21,10 +21,11 @@ def judge_answer(question, answer, metric=0.7) -> JudgeResult:
                 Regras:
                     - Avalie se a resposta fornecida está correta e completa em relação à pergunta feita.
                     - Retorne somente um valor numérico entre 0.0 e 1.0, com até duas casas decimais.
-                    - 0.0 significa totalmente incorreta; 1.0 significa totalmente correta.
                     - Utilize valores intermediários para indicar níveis de correção e completude.
                     - Não adicione texto antes ou depois do valor numérico.
-                    - Critérios de avaliação:
+                    - 
+                
+                Critérios de avaliação:
                     - A resposta deve ser tecnicamente correta.
                     - A resposta deve atender diretamente ao que foi solicitado.
                     - Se a resposta solicitar informações adicionais ao usuário, considere incorreta.

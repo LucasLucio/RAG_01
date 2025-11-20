@@ -1,5 +1,5 @@
 # Importando bibliotecas necessárias
-import datetime
+from datetime import datetime
 from langchain_ollama import ChatOllama
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -22,10 +22,20 @@ def pre_processing_question(question) -> FilesInRag:
     pseudo_code = model_questions.execute_question(
     question,
     (
-        "Considere que você é um especialista em codificação. "
-        "Responda sempre gerando um pseudo código, sem utilizar uma linguagem específica."
-        "Não acrescente nada ao início nem ao final da resposta, apenas o pseudo código."
-        "Não é necessário explicar o pseudo código, apenas apresente o pseudo código."
+        """
+            Você é um especialista em codificação.
+            Responda sempre gerando pseudo-código, sem utilizar nenhuma linguagem específica.
+
+            Regras:
+
+                - Retorne somente o pseudo-código solicitado.
+                - Não adicione explicações, comentários, títulos ou texto antes ou depois da resposta.
+                - Não utilize sintaxe específica de linguagens reais; descreva a lógica de forma genérica.
+                - Atenda exatamente ao pedido do usuário.
+            
+            Objetivo:
+                - Fornecer pseudo-código claro, direto e representativo da solução solicitada.
+        """
     ))
 
     files_in_rag.pseudo_code = pseudo_code
@@ -35,9 +45,10 @@ def pre_processing_question(question) -> FilesInRag:
     question_files = (
         f"Para o seguinte questionamento do usuário {question}, foi criado o seguinte "
         f"pseudo código: {pseudo_code}. Analise dentro destes arquivos disponíveis ({files_rag}) "
-        "quais acredita conter exemplos de código em Uniface ou explicações da tecnologia que irão auxiliar "
-        "em transcrever o código para a linguagem e na elaboração de uma resposta completa, concisa e correta."
+        "quais acredita conter exemplos de código em uniface que irão auxiliar "
+        "em transcrever o código para a linguagem."
     )
+
     prompt_input = (
         """
             Você é um especialista em codificação em Uniface e também um assistente de perguntas e respostas especializado na tecnologia Uniface.
@@ -45,8 +56,9 @@ def pre_processing_question(question) -> FilesInRag:
 
             Regras:
 
-                - Retorne somente uma lista simples contendo nomes de arquivos separados por ponto e vírgula (;).
-                - Não invente, modifique ou crie novos arquivos; utilize apenas os arquivos presentes no contexto.
+                - Retorne somente uma lista simples contendo somente 6 nomes de arquivos, separados por ponto e vírgula (;).
+                - Os arquivos devem ser ordenados do mais relevante ao menos relevante, considerando o que foi solicitado.
+                - Não invente, não modifique e não crie novos arquivos. Utilize apenas os fornecidos como disponíveis.
                 - Avalie o questionamento do usuário e inclua também arquivos que possam ser úteis para atender à solicitação.
                 - Não adicione texto antes ou depois da lista (sem comentários, títulos ou explicações).
 
@@ -56,10 +68,11 @@ def pre_processing_question(question) -> FilesInRag:
     )
 
     # Define os arquivos que serão utilizados
-    files_need = base_manager.define_files_need(
+    files_need, files_supose = base_manager.define_files_need(
         question_files,
         prompt_input,
-        files_rag
+        files_rag,
+        6
     )
 
     # Remove duplicatas da lista de arquivos necessários
@@ -73,11 +86,12 @@ def pre_processing_question(question) -> FilesInRag:
     files_need_docs_dir = [f"files-input/docs/docs-{file}.pdf" for file in files_need_docs]
 
     files_need_code = [file for file in files_need if file in files_rag_code]
-    files_need_code_dir = [f"files-input/codes/codes-{file}.pdf" for file in files_need_code]
+    files_need_code_dir = [f"files-input/codes/codes-{file}.txt" for file in files_need_code]
 
     files_need = files_need_docs_dir + files_need_code_dir
 
     files_in_rag.files_defined = files_need
+    files_in_rag.files_supose = files_supose
 
     files_in_rag.datetime_end = datetime.now()
 
@@ -86,7 +100,7 @@ def pre_processing_question(question) -> FilesInRag:
 def rag_both(question, steps) -> ExecutionRag:
 
     execution_rag = ExecutionRag()
-    execution_rag.datetime_start = datetime.datetime.now()
+    execution_rag.datetime_start = datetime.now()
 
     model = ChatOllama(model="llama3", temperature=0.7)
 
@@ -96,7 +110,7 @@ def rag_both(question, steps) -> ExecutionRag:
 
     execution_rag.files_used = files_needed
 
-    retriever = base_manager.create_retriever(vectorstore, files_needed, steps)
+    retriever = base_manager.create_retriever(vectorstore, files_needed.files_defined, steps)
 
     # Cria prompt de sistema
     system_prompt = (
@@ -105,7 +119,7 @@ def rag_both(question, steps) -> ExecutionRag:
             Responda sempre com base nos documentos fornecidos pelo RAG.
 
             Regras:
-                - Utilize exclusivamente a base de conhecimento presente nos documentos para responder à solicitação.
+                - Utilize exclusivamente a base de conhecimento presente nos documentos do contexto para responder à solicitação.
                 - Se for necessário criar código em Uniface, use como referência os exemplos e sintaxes presentes no contexto.
                 - Mantenha o foco apenas na tecnologia Uniface.
                 - Não utilize conhecimento externo ou crie informações que não estejam documentadas.
@@ -114,10 +128,15 @@ def rag_both(question, steps) -> ExecutionRag:
                 - Responda sempre em português.
                 - Formate corretamente quaisquer blocos de código fornecidos.
 
+            
+            Recomendações para interpretação do código Uniface:
+                - Todo ; em Uniface é um comentário de linha, sempre após o ; deve haver o texto do comentário.
+                
             Objetivo:
                 - Fornecer uma resposta clara, assertiva e fundamentada apenas nos documentos disponíveis.
             
-            Contexto: {context}
+            Aqui estão os documentos de contexto que você deve usar: 
+            {context}
         """
     )
  
