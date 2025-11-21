@@ -47,6 +47,10 @@ class ExecutionRag:
 
 @dataclass
 class Executions:
+    id: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    position: Optional[str] = None
     question: Optional[str] = None
     datetime_start: Optional[datetime] = None
     datetime_end: Optional[datetime] = None

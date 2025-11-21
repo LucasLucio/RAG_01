@@ -1,3 +1,4 @@
+from log_database import start_database
 import streamlit as st
 import re
 import execute
@@ -9,6 +10,8 @@ def email_valido(email: str) -> bool:
 ##---------------------------
 
 # Lógica principal da aplicação
+
+start_database()
 
 steps = ['judge', 'router', 'filter']
 
@@ -33,7 +36,7 @@ st.markdown("<h3 style='text-align: center;'>Identificação do Usuário</h3>", 
 col1, col2 = st.columns(2)
 
 with col1:
-    nome = st.text_input("Nome", max_chars=100)
+    name = st.text_input("Nome", max_chars=100)
 
 with col2:
     email = st.text_input("E-mail", max_chars=100)
@@ -42,19 +45,19 @@ with col2:
 email_ok = email_valido(email) if email else False
 
 if email and not email_ok:
-    st.warning("⚠️ Digite um e-mail válido (exemplo: nome@dominio.com)")
+    st.warning("Digite um e-mail válido (exemplo: nome@dominio.com)")
 
 
-cargo = st.selectbox(
+position = st.selectbox(
     "Cargo",
     ["Selecione...", "Estagiário", "Trainee", "Júnior", "Pleno", "Sênior"]
 )
 
 # Validação de campos
 dados_validos = (
-    nome.strip() != "" and
+    name.strip() != "" and
     email.strip() != "" and
-    cargo != "Selecione..."
+    position != "Selecione..."
 )
 
 st.divider()
@@ -84,14 +87,14 @@ if enviar and pergunta.strip() != "":
 
     # Ícone de carregamento
     with st.spinner("A IA está pensando..."):
-        resposta = execute.execute_question(pergunta, steps)
+        resposta = execute.execute_question(pergunta, steps, name, email, position)
         response = next((x for x in resposta.executions_rag if x.returned == True), None).response
         
         st.session_state.resposta = response
 
     st.session_state.processando = False
 
-# Exebindo a resposta
+# Exibindo a resposta
 if st.session_state.resposta:
     st.write("### Aqui está sua resposta:")
     st.success(st.session_state.resposta)

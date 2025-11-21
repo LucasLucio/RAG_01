@@ -1,17 +1,31 @@
 # Importando bibliotecas necessárias
+from dataclasses import asdict
 from datetime import datetime
 from classes import Executions
 import router
 import judge
+import uuid
+import log_database
 
-
-def execute_question(question: str, steps: list) -> Executions:
+def execute_question(question: str, steps: list, name: str, email: str, position: str) -> Executions:
     if 'judge' in steps:
         response = execute_judge(question, steps)
     else:
         response = execute_direct(question, steps)
 
     response.steps = steps
+    response.name = name
+    response.email = email
+    response.position = position
+
+    try:
+        id = str(uuid.uuid4())
+        response.id = id
+        log_database.insert_log(id, asdict(response))
+    except Exception as e:
+        # Em caso de erro ao gerar UUID, logar o erro
+        print(f"Erro ao gerar ID: {e}")
+
     return response
 
 
