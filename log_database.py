@@ -1,7 +1,6 @@
 import sqlite3
 import json
-import os
-import uuid
+
 
 DB_FILE = "log_questions.db"
 
@@ -36,7 +35,7 @@ def insert_log(id, data: dict):
     question = data.get("question")
     datetime_start = data.get("datetime_start")
     datetime_end = data.get("datetime_end")
-    data_json = json.dumps(data, ensure_ascii=False)
+    data_json = json.dumps(data, ensure_ascii=False, default=str)
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -57,15 +56,3 @@ def insert_log(id, data: dict):
 # -----------------------------------------------------
 if __name__ == "__main__":
     start_database()
-
-    exemplo_data = {
-        "question": "O que é uma operation?",
-        "datetime_start": "2025-11-12 20:13:08.651377",
-        "datetime_end": "2025-11-12 20:13:42.030912",
-        "default_return": False,
-        "response": None,
-        "executions_rag": [],
-        "steps": ["judge", "router", "filter"]
-    }
-
-    insert_log(exemplo_data)

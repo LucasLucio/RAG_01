@@ -11,7 +11,7 @@ def email_valido(email: str) -> bool:
 
 # Lógica principal da aplicação
 
-start_database()
+
 
 steps = ['judge', 'router', 'filter']
 

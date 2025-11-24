@@ -23,8 +23,8 @@ def execute_question(question: str, steps: list, name: str, email: str, position
         response.id = id
         log_database.insert_log(id, asdict(response))
     except Exception as e:
-        # Em caso de erro ao gerar UUID, logar o erro
-        print(f"Erro ao gerar ID: {e}")
+        # Em caso de erro ao salvar registro, logar o erro
+        print(f"Erro em salvar registro: {e}")
 
     return response
 
