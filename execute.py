@@ -66,7 +66,7 @@ def execute_judge(question, steps: list) -> Executions:
     execution_rag.attempt = attempts + 1
     execution_rag.returned = False
     if execution_rag and isinstance(execution_rag.response, str) and len(execution_rag.response) > 0:
-        validate_responses = judge.judge_answer(question, execution_rag.response, metric=0.7)
+        validate_responses = judge.judge_answer(question, execution_rag.response, metric=0.8)
         execution_rag.judge_result = validate_responses
         if validate_responses.is_correct == True:
             executions.executions_rag.append(execution_rag)
