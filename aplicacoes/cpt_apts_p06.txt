@@ -1,0 +1,143 @@
+﻿operation exec
+	variables
+		struct vStc
+	endvariables
+	
+	debug
+	call plValidaAprovacao(6,6,6,-8, 7, vStc, $t_ds_erro$)
+	if($status < 0)
+		message/error "%%$t_ds_erro$"
+		return -99
+	endif
+	
+  return 0
+
+end
+
+entry plValidaAprovacao
+	params
+		numeric pNt1	:in
+		numeric pNt2	:in
+		numeric pNt3	:in
+		numeric pNt4	:in
+		numeric pVlMedia	:in
+		struct  pStcSaida :out
+				$t_ds_erro$ :out
+	endparams
+	
+	variables
+		numeric vMedia
+		boolean vInAprovado
+		struct  vStcSaida
+	endvariables
+	
+	vStcSaida->$name = "Aprovacao"
+	vStcSaida->MediaFinal = $newstruct
+	vStcSaida->Aprovado = $newstruct
+	
+	if (pNt1 > 10 | pNt1 < 0)
+		$t_ds_erro$ = "Nota 1 fora do intervalo permitido!"
+		return -99
+		
+	elseif(pNt2 > 10 | pNt2 < 0)
+		$t_ds_erro$ = "Nota 2 fora do intervalo permitido!"
+		return -99
+		
+	elseif(pNt3 > 10 | pNt3 < 0)
+		$t_ds_erro$ = "Nota 3 fora do intervalo permitido!"
+		return -99
+		
+	elseif(pNt4 > 10 | pNt4 < 0)
+		$t_ds_erro$ = "Nota 4 fora do intervalo permitido!"
+		return -99
+
+	elseif(pVlMedia > 10 | pVlMedia < 0)
+		$t_ds_erro$ = "Média de aceite fora do intervalo permitido!"
+		return -99
+	endif
+
+	vMedia = (pNt1 + pNt2 + pNt3 + pNt4) / 4
+	
+	if(vMedia < pVlMedia)
+		vInAprovado = 0
+	else
+		vInAprovado = 1
+	endif
+	
+	vStcSaida->MediaFinal = vMedia
+	VStcSaida->Aprovado = vInAprovado
+	
+	pStcSaida = vStcSaida
+	
+	return 0
+	
+end
+
+entry plCalculaValoCompra
+;	Compra
+;		->itens	
+;			-> item1
+;				->nome
+;				->qtd
+;				->valor_unitário
+;				->vl_total_item
+;			-> item2
+;				->nome
+;				->qtd
+;				->valor_unitário
+;				->vl_total_item
+;			...
+;	
+;		-> sub_total_compra
+;	    -> total_desc_add
+;	
+	params
+		struct pStcItensCompra :inout		;itens da compra
+		numeric pTpPagamento   :in 	;tipo de pagamento
+	endparams
+	
+	variables
+		numeric vStcTotalItens
+		numeric vIterador
+		numeric vVlTotalItem
+		numeric vVlTotal			;total compra sem desconto ou adição
+	endvariables
+	
+	vStcTotalItens = pStcItensCompra->itens->$collsize
+	vIterador = 1
+	vVlTotalItem = 0
+	vVlTotal = 0
+	
+	debug
+	;Calcula o valor total da compra
+	while (vIterador <= vStcTotalItens)
+		vVlTotalItem = vVlTotalItem + (pStcItensCompra->itens{vIterador}->valor_unitario * pStcItensCompra->itens{vIterador}->qtd)
+		pStcItensCompra->itens{vIterador}->vl_total_item =  vVlTotalItem
+		vVlTotal = vVlTotal + vVlTotalItem
+		vVlTotalItem = 0
+		
+		vIterador = vIterador+1
+	
+	endwhile
+	
+	;Checa qual o tipo de pagamento
+	if(pTpPagamento = 1)	;1 = dinheiro -> 5% de desconto
+		pStcItensCompra->sub_total_compra = vVlTotal
+		vVlTotal = vVlTotal - (vVlTotal * 0.05)
+		pStcItensCompra->total_desc_add = vVlTotal
+		
+	elseif(pTpPagamento = 2)	
+		pStcItensCompra->sub_total_compra = vVlTotal
+		vVlTotal = vVlTotal + (vVlTotal * 0.035)
+		pStcItensCompra->total_desc_add = vVlTotal
+	
+	elseif(pTpPagamento = 2)
+		pStcItensCompra->sub_total_compra = vVlTotal
+		vVlTotal = vVlTotal + (vVlTotal * 0.015)
+		pStcItensCompra->total_desc_add = vVlTotal
+		
+	endif
+	
+	return (0)
+
+end

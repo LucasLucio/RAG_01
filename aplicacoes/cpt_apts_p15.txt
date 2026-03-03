@@ -1,0 +1,83 @@
+﻿operation calculaMedia
+	params
+		struct pNotas		:IN
+		numeric pMedia		:OUT
+		boolean pSituacao 	:OUT
+	endparams
+	
+	if (pNotas->A = "")	throw -99999, "Valor da Nota A é obrigatório!"
+	if (pNotas->B = "")	throw -99999, "Valor da Nota B é obrigatório!"
+	if (pNotas->C = "")	throw -99999, "Valor da Nota C é obrigatório!"
+	if (pNotas->D = "")	throw -99999, "Valor da Nota D é obrigatório!"
+	if (plNotaEhValida(pNotas->A) = 0) throw -99999, "Valor da Nota A está inválida"
+	if (plNotaEhValida(pNotas->B) = 0) throw -99999, "Valor da Nota B está inválida"
+	if (plNotaEhValida(pNotas->C) = 0) throw -99999, "Valor da Nota C está inválida"
+	if (plNotaEhValida(pNotas->D) = 0) throw -99999, "Valor da Nota D está inválida"
+	
+	pSituacao = 0
+	pMedia = (pNotas->A + pNotas->B + pNotas->C + pNotas->D)/4
+	if (pMedia >= 6.0) pSituacao = 1
+	
+	return 0
+end	;calculaMedia
+
+
+operation calculaTotalProdutos
+	params
+		struct pCarrinho	:INOUT
+	endparams
+	variables
+		numeric vIndex, vPrice, vQtde, vSize
+		numeric vSubTotal, vTotal
+	endvariables
+	
+	vSize = pCarrinho->PRODUTOS->OCC->$collsize
+	vIndex = 1
+	while (vIndex <= vSize)
+		
+		vQtde = pCarrinho->PRODUTOS->OCC{vIndex}->QTDE
+		vPrice = pCarrinho->PRODUTOS->OCC{vIndex}->PRICE
+		vSubTotal += vQtde * vPrice
+		
+		vIndex += 1
+	endwhile
+
+	call plAplicaPercentPagto(vSubTotal, pCarrinho->TP_PGTO, vTotal)
+	pCarrinho->TOTAL = vTotal
+	
+	return 0
+end ;calculaTotalProdutos
+
+
+entry plAplicaPercentPagto
+	throws
+	params
+		numeric pValor		:IN
+		string pTpPagto		:IN
+		numeric pResult		:OUT
+	endparams
+	
+	selectcase pTpPagto
+	case <DINHEIRO>
+		pResult = pValor - (pValor * 0.05)
+	case <DEBITO>
+		pResult = pValor + (pValor * 0.015)
+	case <CREDITO>
+		pResult = pValor + (pValor * 0.035)
+	endselectcase
+
+	return 0
+end ;plAplicaPercentPagto
+
+
+entry plNotaEhValida
+	throws
+	returns boolean
+	params
+		numeric pNota	:IN
+	endparams
+	
+	if (pNota < 0 | pNota > 10)	return 0
+	
+	return 1
+end ;plValidaNota

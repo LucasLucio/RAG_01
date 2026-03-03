@@ -1,0 +1,100 @@
+﻿
+entry plVerificarNotasIA
+	params
+		string pLsEntrada : in
+		numeric pLimiar : in
+	endparams
+	
+	variables
+		numeric vNota
+		numeric vMean
+		numeric vCounter
+		boolean vAprovado
+		struct  vSaida
+	endvariables
+	vMean = 0
+	
+	forlist vNota, vCounter in pLsEntrada
+		if (vNota > 10 || vNota < 0)
+			return -99
+		endif
+		vMean = vMean + vNota
+	endfor
+	
+	vMean = vMean / vCounter
+	
+	if (vMean > 10 || vMean < 0)
+		return -99
+	endif
+	
+	if (vMean > pLimiar)
+		vAprovado = 1
+	else 
+		vAprovado = 0
+	endif
+	
+;	vSaida -> vMean -> vAprovado
+
+;	vSaida = {vMean, vAprovado}
+	
+	vSaida = vMean
+	
+	vSaida = vAprovado
+	
+	return (vSaida)
+end ; plVerificarNotasIA
+
+entry plCalcularValor
+	params
+		struct pStEntrada : in
+		numeric pFormaPagamento : in
+	endparams
+	
+	variables
+		numeric vTotal
+		string vLsEntrada
+		numeric vQuantidade
+		numeric vValor
+		numeric vCounter
+		numeric vUnit
+		numeric vFinal
+		numeric vAux
+		struct vSaida
+	endvariables
+	
+	forentity pStEntrada
+		forlist vLsEntrada, vCounter in pStEntrada
+			getitem vQuantidade, "QUANTIDADE", vLsEntrada
+			getitem vValor, "VALOR", vLsEntrada
+			vUnit = vQuantidade * vValor
+		endfor
+		vTotal = vTotal + vUnit
+	endfor
+	
+	selectcase pFormaPagamento
+	case 1 
+		vAux = vTotal
+		vAux = vAux * 0.05
+		vTotal = vTotal - vAux
+	case 2 
+		vAux = vTotal
+		vAux = vAux * 0.035
+		vTotal = vTotal + vAux
+	case 3 
+		vAux = vTotal
+		vAux = vAux * 0.015
+		vTotal = vTotal + vAux
+	endselectcase
+	
+	vSaida->base = pStEntrada
+	
+	vSaida->base->total = vTotal
+	
+	vSaida->base->Fpagamento = pFormaPagamento
+	
+	vSaida->base->DescAcres = vAux
+	
+	return (vSaida)
+	
+end ; plCalcularValor
+

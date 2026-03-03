@@ -1,0 +1,102 @@
+﻿operation exec
+	variables
+		struct vStcAprovacao,vStcCompras
+	endvariables
+	
+	debug
+	call plValidarNotas(9,8,6,6,7, vStcAprovacao, $t_ds_erro$)
+	if($status < 0)
+		message/error "%%$t_ds_erro$"
+		return -99
+	endif
+	
+	call plValorCompras(2, vStcCompras, $t_ds_erro$)
+	if($status < 0)
+		message/error "%%$t_ds_erro$"
+		return -99
+	endif
+	
+  return(0)
+end
+
+entry plValidarNotas
+	params
+		numeric pNota1       : IN
+		numeric pNota2       : IN
+		numeric pNota3       : IN
+		numeric pNota4       : IN
+		numeric pMediaMinima : IN
+		struct vStcAprovacao : OUT
+		       $t_ds_erro$   : OUT
+	endparams
+	variables
+		float vMedia
+	endvariables
+
+	if (pNota1 < 0 | pNota1 > 10 | pNota2 < 0 | pNota2 > 10 | pNota3 < 0 | pNota3 > 10 | pNota4 < 0 | pNota4 > 10) 
+		$t_ds_erro$ = "Erro de Validação das Notas"
+		return -99
+	endif
+	
+	vMedia = (pNota1 + pNota2 + pNota3 + pNota4)/4;~> Calculo da média
+	
+	vStcAprovacao->vMedia = vMedia
+	if(vMedia >= pMediaMinima)
+		vStcAprovacao->vSituacao = 1 
+	else
+		vStcAprovacao->vSituacao = 0
+	endif
+end
+
+entry plValorCompras
+	params
+		numeric pFormaPagamento : IN
+		struct vStcCompras      : INOUT
+		       $t_ds_erro$      : OUT
+	endparams
+	variables
+		numeric vVlTotalItem
+		numeric vTotalItens
+		numeric vVlTotal
+		numeric vOcc
+	endvariables
+	
+	vTotalItens = vStcCompras->itens->$collsize
+	
+	vVlTotalItem = ""
+	vVlTotal     = ""
+	vOcc         = 1
+	
+	while (vOcc <= vTotalItens)
+		vVlTotalItem = vVlTotalItem + (vStcCompras->itens{vOcc}->valor_unitario * vStcCompras->itens{vOcc}->qtd)
+		vStcCompras->itens{vOcc}->vVlTotal =  vVlTotalItem
+		vVlTotal = vVlTotal + vVlTotalItem
+		vVlTotalItem = 0
+		
+		vOcc = vOcc+1
+	endwhile
+	
+	
+	if(pFormaPagamento > 3 | pFormaPagamento < 1)
+		$t_ds_erro$ = "Metodo de pagamento indisponivel!"
+		return -99
+	else
+		if(pFormaPagamento = 1);dinheiro
+			vStcCompras->vVlSubTotal = vVlTotal
+			vVlTotal = vVlTotal - (vVlTotal * 0.05)
+			vStcCompras->vTotalDesc = vVlTotal
+				
+		elseif (pFormaPagamento = 2);crédito
+			vStcCompras->vVlSubTotal = vVlTotal
+			vVlTotal = vVlTotal + (vVlTotal * 0.035)
+			vStcCompras->vTotalDesc = vVlTotal
+				
+		else;debito
+			vStcCompras->vVlSubTotal = vVlTotal
+			vVlTotal = vVlTotal + (vVlTotal * 0.015)
+			vStcCompras->vTotalDesc = vVlTotal
+		endif
+	endif
+	
+	return(0)
+end

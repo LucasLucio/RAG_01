@@ -1,0 +1,91 @@
+﻿
+
+entry calcula_valor_total_compra
+	params
+		struct produtos_compra: IN
+		numeric forma_pagamento: IN
+		struct compra_saida: OUT
+	endparams
+	variables
+		numeric total_produto, total_compra, quantidade_produto, preco_produto, preco_desconto, i, quantidade_produtoscompra
+	endvariables
+	;produtos_compra->PRODUTOS
+	quantidade_produtoscompra = produtos_compra->PRODUTOS->NOME->$collsize
+	if(quantidade_produtoscompra < 1)
+		return -1
+	endif
+	
+	compra_saida = $newstruct
+	total_compra = 0;
+	for i = 1 to quantidade_produtoscompra
+		
+		quantidade_produto = produtos_compra->PRODUTOS{i}->QUANTIDADE
+		preco_produto = produtos_compra->PRODUTOS{i}->PRECO
+		
+		total_produto = quantidade_produto * preco_produto
+		total_compra = total_compra + total_produto 
+		
+		compra_saida->*{i}->NOME_PRODUTO = produtos_compra->PRODUTOS{i}->NOME
+		compra_saida->*{i}->VALOR_TOTALPRODUTO = total_produto 
+		compra_saida->*{i}->QUANTIDADE = quantidade_produto
+		compra_saida->*{i}->PRECO_UNITARIO = preco_produto
+	endfor
+	if (forma_pagamento = 1)
+		preco_desconto = total_compra * 0.95
+	elseif (forma_pagamento = 2)
+		preco_desconto = total_compra * 1.035
+	else
+		preco_desconto = total_compra * 1.015
+	endif
+	compra_saida->*{-1}->PRECO_TOTAL = total_compra
+	compra_saida->*{-1}->PRECO_DESCONTO = preco_desconto
+	
+	return 0 
+end
+
+
+entry calcula_nota
+	params
+		numeric nota_1: IN 
+		numeric nota_2: IN 
+		numeric nota_3: IN 
+		numeric nota_4: IN
+		numeric media_aprovacao: IN
+		struct saida: OUT
+		string t_ds_erro: OUT
+	endparams
+	variables
+		numeric media_aluno, soma_notas
+	endvariables
+	if(nota_1 < 0 || nota_1 > 10)
+		t_ds_erro = "nota 1 fora do intervalo permido"
+		return -1
+	endif
+	if(nota_2 < 0 || nota_2 > 10)
+		t_ds_erro = "nota 2 fora do intervalo permido"
+		return -1
+	endif
+	if(nota_3 < 0 || nota_3 > 10)
+		t_ds_erro = "nota 3 fora do intervalo permido"
+		return -1
+	endif
+	if(nota_4 < 0 || nota_4 > 10)
+		t_ds_erro = "nota 4 fora do intervalo permido"
+		return -1
+	endif
+	if(media_aprovacao > 10 || media_aprovacao < 0)
+		t_ds_erro = "media de aprovacao fora do intervalo"
+		return -1
+	endif	
+		
+	media_aluno = (nota_1 + nota_2 + nota_3 + nota_4)/4
+	saida = $newstruct
+	saida->MEDIA = media_aluno
+	if(media_aluno >= media_aprovacao)
+		saida->*{-1}->SITUACAO = 1
+	else
+		saida->*{-1}->SITUACAO = 0
+	endif
+	
+	return 0
+end

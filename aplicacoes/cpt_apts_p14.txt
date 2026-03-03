@@ -1,0 +1,110 @@
+﻿
+;|
+;Autor: vguimaraes
+;Data:	05/01/2026
+operation calculaNota
+	params
+		struct pStcEntrada 	:IN
+		struct pStcSaida 	:OUT
+	endparams
+	
+	variables
+		string vDsContexto
+		numeric vNrTotalNota, vNrMediaFinal, vNrAux
+	endvariables
+	
+	vDsContexto = "<$componentname>.calculaNota"
+		
+
+	if (pStcEntrada->mediaMinima < 0 | pStcEntrada->mediaMinima > 10)
+		$t_ds_erro$ = "A média mínima informada está fora do intervalo [0..10]. %%vDsContexto"
+		return (-99)
+	endif
+	
+	if (pStcEntrada->nota->$collsize < 4)
+		$t_ds_erro$ = "Não foram repassas as 4 notas do aluno. %%vDsContexto"
+		return (-99)
+	endif
+	
+	for vNrAux = 1 to pStcEntrada->nota->$collsize 
+		if (pStcEntrada->nota{vNrAux} < 0 | pStcEntrada->nota{vNrAux} > 10)
+			$t_ds_erro$ = "A nota informada está fora do intervalo [0..10]. Nota: %%vNrAux%%%. %%vDsContexto"
+			return (-99)
+		endif
+		
+		vNrTotalNota += pStcEntrada->nota{vNrAux}
+	endfor
+	
+	pStcSaida->situacaoAluno = $newstruct
+	vNrMediaFinal = vNrTotalNota / 4
+	
+	if (vNrMediaFinal >= pStcEntrada->mediaMinima)
+		pStcSaida->situacaoAluno = 'T' ;Aprovado
+	else
+		pStcSaida->situacaoAluno = 'F' ;Reprovado
+	endif
+
+	pStcSaida->mediaFinal = vNrMediaFinal
+	
+	return (0)
+	
+end ;aprovaaluno
+
+;|
+;Autor: vguimaraes
+;Data:	05/01/2026
+operation calcularValorCompra
+    params
+        struct  vStcProdutos   : IN  
+        numeric vTpPagamento   : IN    ; 1=Dinheiro, 2=Crédito, 3 = Débito
+        struct  vStcSaida      : OUT
+    endparams
+
+    variables
+        string  vDsContexto
+        numeric vNrAux, vQtdOcc, vQtProduto, vVlUnitario, vVlTotal, vVlSubTotal, vQtPercAjuste, vVlTotalProcessado
+    endvariables
+
+	vDsContexto = "<$componentname>.calcularValorCompra"
+
+
+    vQtdOcc = vStcProdutos->OCC->$membercount
+    if (vQtdOcc <= 0)
+        $t_ds_erro$ = "Nenhum produto informado. %%vDsContexto"
+        return (-99)
+    endif
+
+    vVlSubTotal = 0
+    vStcSaida   = vStcProdutos 
+
+    for vNrAux = 1 to vQtdOcc
+        vQtProduto  = vStcProdutos->OCC{vNrAux}->QT_ADQUIRIDA
+        vVlUnitario = vStcProdutos->OCC{vNrAux}->VL_UNITARIO
+
+        vVlTotal    = vQtProduto * vVlUnitario
+        vVlSubTotal += vVlTotal
+
+        vStcSaida->OCC{vNrAux}->VL_TOTAL = vVlTotal
+    endfor
+
+    ; 1 = Dinheiro  -> -5% (desconto)
+    ; 2 = Crédito   -> +3.5% (acréscimo)
+    ; 3 = Débito    -> +1.5% (acréscimo)
+    selectcase vTpPagamento
+        case 1
+            vQtPercAjuste = -5.0
+        case 2
+            vQtPercAjuste = 3.5
+        case 3
+            vQtPercAjuste = 1.5
+    endselectcase
+
+    vVlTotalProcessado = vVlSubTotal * (1 + (vQtPercAjuste / 100))
+
+    vStcSaida->VL_SUBTOTAL         = vVlSubTotal
+    vStcSaida->PERC_AJUSTE         = vQtPercAjuste
+    vStcSaida->VL_TOTALPROCESSADO  = vVlTotalProcessado
+
+    return (0)
+    
+end ; calcularValorCompra

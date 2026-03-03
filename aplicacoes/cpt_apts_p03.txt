@@ -1,0 +1,178 @@
+﻿operation exec
+	variables
+		string vLsEntrada
+		struct vStcEntrada, vStcSaida
+		numeric vNrIndex
+	endvariables
+	
+	vStcEntrada= $newstruct
+	vStcEntrada->produtos = $newstruct
+	
+	for vNrIndex = 1 to 3
+		vStcEntrada->produtos->*{-1} = $newstruct
+		vStcEntrada->produtos->*{-1}->nm_produto = "teste %%vNrIndex"
+		vStcEntrada->produtos->*{-1}->qt_produto = 2
+		vStcEntrada->produtos->*{-1}->vl_unitario = 31.3 + vNrIndex*0.1198175621
+	endfor
+	
+	vStcEntrada->cd_cndvenda = 1
+	
+	debug
+	$instancehandle->calcularPrecoCompra(vStcEntrada, vStcSaida, $t_ds_erro$)
+	if($status <0)
+		return (<G_ERROEXEC>)
+	endif	
+end
+
+operation validarAprovacao
+	params
+		string pLsEntrada:IN
+		struct pStcSaida :OUT
+		$t_ds_erro$ :OUT
+	endparams
+	variables
+		string vDsContexto
+		numeric vVlMediaFinal
+		boolean vInAprovado
+	endvariables
+	
+	vDsContexto = "%%^(<$componentname>.validarAprovacao)"
+	
+	call plValidarParametrosObrigatorio(pLsEntrada)
+	if($status <0)
+		return (<G_ERROEXEC>)
+	endif
+	
+	call plValidarIntervaloParametro(pLsEntrada)
+	if($status <0)
+		return (<G_ERROEXEC>)
+	endif	
+	
+	vVlMediaFinal = ($item("VL_NOTA1", pLsEntrada) + $item("VL_NOTA2", pLsEntrada) + $item("VL_NOTA3", pLsEntrada) + $item("VL_NOTA4", pLsEntrada))/4
+	vInAprovado = (vVlMediaFinal >= $item("VL_MEDIAMIN", pLsEntrada))
+	
+	pStcSaida = $newstruct
+	pStcSaida->media_final = vVlMediaFinal
+	pStcSaida->aprovado= vInAprovado
+	
+	return(0)
+end;validarAprovacao
+
+operation calcularPrecoCompra
+	params
+		byval struct pStcEntrada :IN
+		struct pStcSaida :OUT
+		$t_ds_erro$ :OUT
+	endparams
+	variables
+		string vDsContexto 
+		struct vStcProdutos
+		numeric vNrIndex, vQtProduto, vVlUnitario, vVlSubTotal, vVlTotal, vCdCndVenda, vQtRegraPagamento
+	endvariables
+	
+	vDsContexto = "%%^(<$componentname>.calcularPrecoCompra)"
+	
+	vStcProdutos = pStcEntrada->produtos
+	
+	vVlSubTotal = 0
+	for vNrIndex = 1 to vStcProdutos->*->$collsize
+		vQtProduto = vStcProdutos->*{vNrIndex}->qt_produto 
+		vVlUnitario = vStcProdutos->*{vNrIndex}->vl_unitario
+		vStcProdutos->*{vNrIndex}->vl_item = vQtProduto*vVlUnitario
+		vVlSubTotal += vQtProduto*vVlUnitario
+	endfor
+	
+	vCdCndVenda = pStcEntrada->cd_cndvenda
+	
+	if(vCdCndVenda = 1); dinheiro
+		vQtRegraPagamento = 0.05 * vVlSubTotal
+		vVlTotal = vVlSubTotal - vQtRegraPagamento
+	elseif(vCdCndVenda = 2) ;credito
+		vQtRegraPagamento = 0.035 * vVlSubTotal
+		vVlTotal = vVlSubTotal - vQtRegraPagamento
+	else;debito
+		vQtRegraPagamento = 0.015 * vVlSubTotal
+		vVlTotal = vVlSubTotal - vQtRegraPagamento		
+	endif
+		
+	vStcProdutos->vl_total = vVlTotal
+	
+	pStcSaida = vStcProdutos
+	
+end;calcularPrecoCompra
+
+entry plValidarParametrosObrigatorio
+	params
+		string pLsEntrada :IN
+	endparams
+	variables
+		string vDsContexto
+	endvariables
+	
+	vDsContexto = "%%^(<$componentname>.plValidarParametrosObrigatorio)"
+	
+	if($item("VL_NOTA1", pLsEntrada) = "")
+		$t_ds_erro$ = $concat("O valor da primeira nota é obrigatoria!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+
+	if($item("VL_NOTA2", pLsEntrada) = "")
+		$t_ds_erro$ = $concat("O valor da segunda nota é obrigatoria!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+	
+	if($item("VL_NOTA3", pLsEntrada) = "")
+		$t_ds_erro$ = $concat("O valor da terceira nota é obrigatoria!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+
+	if($item("VL_NOTA4", pLsEntrada) = "")	
+		$t_ds_erro$ = $concat("O valor da quarta nota é obrigatoria!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+	
+	if($item("VL_MEDIAMIN", pLsEntrada) = "")
+		$t_ds_erro$ = $concat("O valor da média mínima é obrigatoria!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+	
+	return(0)
+end;plValidarParametrosObrigatorio
+
+entry plValidarIntervaloParametro
+	params
+		string pLsEntrada :IN
+	endparams
+	variables
+		string vDsContexto
+	endvariables
+	
+	vDsContexto = "%%^(<$componentname>.plValidarIntervaloParametro)"
+	
+	if($item("VL_NOTA1", pLsEntrada) < 0 | $item("VL_NOTA1", pLsEntrada) > 10)
+		$t_ds_erro$ = $concat("O valor da primeira nota esta fora do intervalo (0-10)!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+
+	if($item("VL_NOTA2", pLsEntrada) < 0 | $item("VL_NOTA2", pLsEntrada) > 10)
+		$t_ds_erro$ = $concat("O valor da segunda nota esta fora do intervalo (0-10)!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+	
+	if($item("VL_NOTA3", pLsEntrada) < 0 | $item("VL_NOTA3", pLsEntrada) > 10)
+		$t_ds_erro$ = $concat("O valor da terceira nota esta fora do intervalo (0-10)!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+
+	if($item("VL_NOTA4", pLsEntrada) < 0 | $item("VL_NOTA4", pLsEntrada) > 10)
+		$t_ds_erro$ = $concat("O valor da quarta nota esta fora do intervalo (0-10)!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif
+	
+	if($item("VL_MEDIAMIN", pLsEntrada) < 0 | $item("VL_MEDIAMIN", pLsEntrada) > 10 )
+		$t_ds_erro$ = $concat("O valor da média mínima esta fora do intervalo (0-10)!", vDsContexto)
+		return (<G_ERROEXEC>)
+	endif	
+	
+	return(0)
+end;plValidarIntervaloParametro

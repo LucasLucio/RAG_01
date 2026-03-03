@@ -1,0 +1,85 @@
+﻿
+
+operation mediaAlunos
+	params
+		numeric pNumMediaMinima : IN
+		string pListNotas: IN
+		struct pStcValidacao : OUT
+	endparams
+	
+	variables
+		string vNotas
+		numeric vNotaNumero, vMediaFinal
+		boolean vSituacao
+	endvariables
+	
+	pStcValidacao = $newstruct
+	vMediaFinal = 0
+	
+	if(pNumMediaMinima < 0 || pNumMediaMinima > 10)
+		throw -10001, "Média inválida"
+	endif
+	
+	forlist vNotas in pListNotas
+		vNotaNumero = $number(vNotas)
+		if(vNotaNumero < 0 || vNotaNumero > 10)
+			throw -10001, "Nota inválida"
+		else
+			vMediaFinal = vMediaFinal + vNotaNumero
+		endif
+	endfor
+	
+	vMediaFinal = vMediaFinal/4
+	
+	if(vMediaFinal >= pNumMediaMinima)
+		vSituacao = 1
+	else
+		vSituacao = 0
+	endif
+	
+	pStcValidacao->mediaFinal = vMediaFinal
+	pStcValidacao->situacao = vSituacao
+	
+end;mediaAlunos
+
+operation compraTotal
+	params
+		struct pStcCompras : IN
+		numeric pNumFormaPagamento : IN
+		struct pStcFinal : OUT
+	endparams
+	
+	variables
+		string vProdutos
+		numeric vValorProduto, vSubTotal, vValorFinal, vDesconto
+	endvariables
+	
+	pStcFinal = $newstruct
+	vValorProduto = 0
+	vValorFinal = 0
+	vSubTotal = 0
+	vDesconto = 0
+	
+	forlist vProdutos in pStcCompras->produtos
+		vValorProduto = pStcCompras->produtos->qtde * pStcCompras->produtos->valor
+		vSubTotal = vSubTotal + vValorProduto
+		pStcFinal->produtos->valor = vValorProduto
+	endfor
+	
+	pStcFinal->produtos->subTotal = vSubTotal
+	
+	if(pNumFormaPagamento == 1)
+		vDesconto = (vSubTotal * 0.05)
+		vValorFinal = vSubTotal - vDesconto
+	elseif(pNumFormaPagamento == 2)
+		vDesconto = (vSubTotal * 0.035)
+		vValorFinal = vSubTotal + vDesconto
+	elseif(pNumFormaPagamento == 3)
+		vDesconto = (vSubTotal * 0.015)
+		vValorFinal = vSubTotal + vDesconto
+	endif
+	
+	pStcFinal->valorFinal = vValorFinal
+	pStcFinal->desconto = vDesconto
+	
+end;compraTotal

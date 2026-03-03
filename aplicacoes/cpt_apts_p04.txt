@@ -1,0 +1,73 @@
+﻿operation exec
+	variables
+		struct vStruct, vStructCompra
+	endvariables
+	debug
+	;call plVerififcarAprovacao(6,7,8,9,5, vStruct)
+	
+	vStructCompra = $newstruct
+	vStructCompra->PRODUTO = $newstruct
+	vStructCompra->PRODUTO{-1}->NOME = "Roundup"
+	vStructCompra->PRODUTO{-1}->QTD = 5
+	vStructCompra->PRODUTO{-1}->VL_UNITARIO = 122
+	
+	vStructCompra->PRODUTO{-1}->NOME = "Chave Sextavada"
+	vStructCompra->PRODUTO{-1}->QTD = 5
+	vStructCompra->PRODUTO{-1}->VL_UNITARIO = 55
+	
+	call plCompra(vStructCompra)
+	return(0)
+end
+
+
+entry plVerififcarAprovacao
+	params
+		numeric vNota1 : in
+		numeric vNota2 : in
+		numeric vNota3 : in
+		numeric vNota4 : in
+		numeric vNotaMinima : in
+		struct  vStructSaida : out
+	endparams
+
+	if(vNota1 < 0 | vNota1 > 10)
+		return(-99)
+	endif
+	
+	if(vNota2 < 0 | vNota2 > 10)
+		return(-99)
+	endif
+	
+	if(vNota3 < 0 | vNota3 > 10)
+		return(-99)
+	endif
+
+	if(vNota4 < 0 | vNota4 > 10)
+		return(-99)
+	endif
+	
+	if(vNotaMinima < 0 | vNotaMinima > 10)
+		return(-99)
+	endif
+	
+	vStructSaida = $newstruct
+	vStructSaida->MEDIA = (vNota1 + vNota2 + vNota3 + vNota4)/4
+	vStructSaida->APROVADO = 'F'
+	
+	if(vStructSaida->MEDIA >= vNotaMinima)
+		vStructSaida->APROVADO = 'T'
+	endif
+	
+	return(0)
+end
+
+
+entry plCompra
+	params
+		struct vStructCompra : in
+	endparams
+
+
+	
+	return(0)
+end

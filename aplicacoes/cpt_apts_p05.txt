@@ -1,0 +1,113 @@
+﻿operation exec
+	variables
+		struct lista, produto1, produto2, produto3, saida
+		string listaProdutos
+	endvariables
+	debug
+;	putitem notas, -1, 8
+;	putitem notas, -1, 2
+;	putitem notas, -1, 5
+;	putitem notas, -1, 10
+;	
+;	activate "APTS_PGRIGOLLI".validaNota(notas, 6, aprovados)
+
+
+	produto1 = $newstruct
+	produto1->nome = "Produto 1"
+	produto1->quantidade = 3
+	produto1->valor = 10
+	
+	produto2 = $newstruct
+	produto2->nome = "Produto 2"
+	produto2->quantidade = 5
+	produto2->valor = 5
+	
+	produto3 = $newstruct
+	produto3->nome = "Produto 3"
+	produto3->quantidade = 12
+	produto3->valor = 3
+
+	putitem listaProdutos, -1, produto1
+	putitem listaProdutos, -1, produto2
+	putitem listaProdutos, -1, produto3
+
+	lista = $newstruct
+	lista->produtos = listaProdutos
+
+	activate "APTS_PGRIGOLLI".calculaPrecoDesconto(lista, 1, saida)
+end
+
+operation validaNota
+	params
+		string notas :IN
+		numeric media :IN
+		struct aprovacao :OUT
+	endparams
+	
+	variables
+		numeric nota, qtNotas, somaNota, mediaFinal
+	endvariables
+	
+	aprovacao = $newstruct
+	forlist nota in notas:
+		if(nota < 0 | nota > 10)
+			return("Erro de validação: nota fora do intervalo permitido!")
+		endif
+		
+		if(media < 0 | media > 10)
+			return("Erro de validação: média fora do intervalo permitido!")
+		endif
+		qtNotas += 1
+		
+		somaNota += nota
+		
+	endfor
+	if(qtNotas < 4)
+		return("Erro de utilização: não existem 4 notas para validar")
+		aprovacao=""
+	endif
+	mediaFinal = somaNota/qtNotas
+	
+	aprovacao->mediaFinal = mediaFinal
+	aprovacao->aprovado = (mediaFinal > media)	
+	
+end
+
+
+
+operation calculaPrecoDesconto
+	params
+		struct listaItens :IN
+		numeric formaPagamento :IN
+		struct total :OUT
+	endparams
+	variables
+		numeric i, subTotalItem, subTotalCompra
+	endvariables
+	
+	for i = 1 to listaItens->produtos->count
+		
+		subTotalItem = listaItens->produtos{i}->valor * listaItens->produtos{i}->quantidade
+		
+		subTotalCompra += subTotalItem
+		
+	endfor
+	
+	total = listaItens
+	
+	total->subTotalCompra = subTotalCompra
+	
+	selectcase formaPagamento
+	case 1
+		total->descontoAplicado = (subTotalCompra * 0.05)
+		total->totalCompra = subTotalCompra - (subTotalCompra * 0.05)
+	case 2
+		total->acrescimoAplicado = (subTotalCompra * 0.015)
+		total->totalCompra = subTotalCompra + (subTotalCompra * 0.015)
+	case 3
+		total->acrescimoAplicado = (subTotalCompra * 0.035)
+		total->totalCompra = subTotalCompra + (subTotalCompra * 0.035)
+	endselectcase
+	
+	
+end

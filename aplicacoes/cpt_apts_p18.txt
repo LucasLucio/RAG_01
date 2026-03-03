@@ -1,0 +1,63 @@
+﻿operation calcularTotalDaCompra
+	params
+		struct  pStcItensCompra   : inout
+		numeric pTpFormaPagamento : in
+		numeric pVlTotal          : out
+	endparams
+	variables
+		numeric vVlSubtotal
+		numeric vIndex
+		numeric vCount
+		struct  vStcItem
+	endvariables
+	
+	vCount = pStcItensCompra->$membercount
+	vIndex = 1
+	vVlSubtotal = 0.0
+	
+	while vIndex <= vCount
+		vStcItem = pStcItensCompra->*{vIndex}
+		vStcItem->VL_TOTAL = vStcItem->QT_ITEM * vStcItem->VL_UNIT
+		vVlSubtotal = vVlSubtotal + vStcItem->VL_TOTAL
+		vIndex = vIndex + 1
+	endwhile
+	
+	pStcItensCompra->VL_SUBTOTAL = vVlSubtotal
+	
+	if pTpFormaPagamento = 1
+		vVlSubtotal = vVlSubtotal * 0.95
+	elseif pTpFormaPagamento = 2
+		vVlSubtotal = vVlSubtotal * 1.035
+	elseif pTpFormaPagamento = 3
+		vVlSubtotal = vVlSubtotal * 1.015
+	endif
+	
+	pVlTotal = vVlSubtotal
+	
+	pStcItensCompra->VL_TOTAL = pVlTotal
+	pStcItensCompra->VL_DIFER = pStcItensCompra->VL_TOTAL - pStcItensCompra->VL_SUBTOTAL
+end
+
+
+operation calcularMediaAluno
+	params
+		string pLsNotas  : in
+		struct pStcSaida : inout
+	endparams
+	variables
+		numeric vVlNota
+		numeric vVlSoma
+	endvariables
+	
+	vVlSoma = 0
+	forlist vVlNota in pLsNotas
+		if vVlNota < 0 || vVlNota > 10
+			return -1
+		endif
+		vVlSoma = vVlSoma + vVlNota
+	endfor
+	
+	pStcSaida = $newstruct
+	pStcSaida->VL_MEDIA    = vVlSoma / $itemcount(pLsNotas)
+	pStcSaida->ST_SITUACAO = pStcSaida->VL_MEDIA >= 6
+end

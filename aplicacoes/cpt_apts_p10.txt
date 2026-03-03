@@ -1,0 +1,112 @@
+﻿operation exec
+	variables
+		struct vStcEntrada, vStcSaida
+	endvariables
+	
+	debug
+	
+	;vStcEntrada->produto = $newstruct
+	;vStcEntrada->produto->nome = "Chocolate"
+	;vStcEntrada->produto->quantidade = 20
+	;vStcEntrada->produto->vl_uni = 10
+	
+	;activate "APTS_RAFERREIRA".calculaValor(vStcEntrada, 1, vStcSaida) ;chamar função
+	
+	vStcEntrada = $newstruct
+	vStcEntrada->nota1 = 10
+	vStcEntrada->nota2 = 5
+	vStcEntrada->nota3 = 6
+	vStcEntrada->nota4 = 3
+	vStcEntrada->mediaMin = 6
+	activate "APTS_RAFERREIRA".aprovacao(vStcEntrada, vStcSaida)
+end
+	
+operation calculaValor ;sem IA
+		params
+			struct vStcEntrada :IN
+			numeric pTipoPag :IN
+			struct vStcSaida :OUT
+		endparams
+		
+		variables
+			numeric vAux, vTotal, vSubTotal, vDesconto, vAcrescimo
+		endvariables
+	
+	vTotal = 0
+	vSubTotal = 0
+	vDesconto = 0
+	
+	vStcSaida = vStcEntrada
+	
+	for vAux = 1 to vStcEntrada->produto->$collsize
+		vStcSaida->produto{vAux}->total = vStcSaida->produto{vAux}->quantidade * vStcSaida->produto{vAux}->vl_uni
+		vSubtotal += vStcSaida->produto{vAux}->total
+	endfor
+	
+	if(pTipoPag = 1)
+		vDesconto = 0.05
+		vTotal = vSubTotal - (vSubtotal * vDesconto)
+	endif
+	if(pTipoPag = 2)
+		vAcrescimo = 0.035
+		vTotal = vSubTotal + (vSubtotal * vAcrescimo)
+	endif
+	if(pTipoPag = 3)
+		vAcrescimo = 0.015
+		vTotal = vSubTotal + (vSubtotal * vAcrescimo)
+	endif
+	
+	vStcSaida->compra = $newstruct
+	vStcSaida->compra->subTotal = vSubTotal
+	vStcSaida->compra->desconto = vDesconto
+	vStcSaida->compra->acrescimo = vAcrescimo
+	vStcSaida->compra->total = vTotal
+	
+	return(0)
+		
+end
+
+operation aprovacao ;com IA
+	params
+		struct vStcEntrada :IN
+		struct vStcSaida :OUT
+	endparams
+	variables
+		numeric vAux, vNota1, vNota2, vNota3, vNota4, vMedia, vMediaMin
+	endvariables
+	
+	vNota1 = vStcEntrada->nota1
+	vNota2 = vStcEntrada->nota2
+	vNota3 = vStcEntrada->nota3
+	vNota4 = vStcEntrada->nota4
+	vMediaMin = vStcEntrada->mediaMin
+	
+	if(vStcEntrada->$membercount < 5)
+		$t_ds_erro$ = "Devem ser informadas 4 notas"
+		return(-99)
+	endif
+	if(vStcEntrada->mediaMin < 0)
+		$t_ds_erro$ = "Média fora do intervalo"
+		return(-99)
+	endif
+	if(vStcEntrada->mediaMin > 10)
+		$t_ds_erro$ = "Média fora do intervalo"
+		return(-99)
+	endif
+	
+	call 
+	
+end
+
+entry plValidar
+	params
+		numeric pNota :IN
+		string  pErro :OUT
+	endparams
+	if(pNota < 0 | pNota > 10)
+		pErro = "A nota é inválida"
+		return(-99)
+	endif
+	
+	return(0)
+end

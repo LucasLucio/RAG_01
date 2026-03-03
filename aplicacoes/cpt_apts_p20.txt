@@ -1,0 +1,176 @@
+﻿operation exec
+	variables
+		struct vStEntrada, vStSaida
+		string vDsErro, vLsProduto
+	endvariables
+	debug
+	
+	vStEntrada = $newstruct
+	
+	vStEntrada->tp_operacao = 1
+	
+	putitem/id vLsProduto, "DS_PRODUTO", "PRODUTO1"
+	putitem/id vLsProduto, "VL_UNITARIO", 150
+	putitem/id vLsProduto, "QT_ITEM", 10
+	putitem vStEntrada->ls_produto, -1, vLsProduto
+	putitem/id vLsProduto, "DS_PRODUTO", "PRODUTO2"
+	putitem/id vLsProduto, "VL_UNITARIO", 70
+	putitem/id vLsProduto, "QT_ITEM", 5
+	putitem vStEntrada->ls_produto, -1, vLsProduto
+	activate $instancename.calcularValorTotal(vStEntrada, vStSaida, vDsErro)
+	if($status < 0)
+		if($status != -99)
+			vDsErro = "Erro na ativação"
+		endif
+		message/error vDsErro
+	endif
+	
+	vStEntrada->vl_nota1 = 6
+	vStEntrada->vl_nota2 = 6
+	vStEntrada->vl_nota3 = 6
+	vStEntrada->vl_nota4 = 6
+	vStEntrada->vl_mediamin = 6
+	activate $instancename.validarNota(vStEntrada, vStSaida, vDsErro)
+	if($status < 0)
+		if($status != -99)
+			vDsErro = "Erro na ativação"
+		endif
+		message/error vDsErro
+	endif
+	
+	vStEntrada->vl_nota1 = 5
+	vStEntrada->vl_nota2 = 6
+	vStEntrada->vl_nota3 = 6
+	vStEntrada->vl_nota4 = 6
+	vStEntrada->vl_mediamin = 6
+	activate $instancename.validarNota(vStEntrada, vStSaida, vDsErro)
+	if($status < 0)
+		if($status != -99)
+			vDsErro = "Erro na ativação"
+		endif
+		message/error vDsErro
+	endif
+	
+	vStEntrada->vl_nota1 = -1
+	vStEntrada->vl_nota2 = 6
+	vStEntrada->vl_nota3 = 6
+	vStEntrada->vl_nota4 = 6
+	vStEntrada->vl_mediamin = 6
+	activate $instancename.validarNota(vStEntrada, vStSaida, vDsErro)
+	if($status < 0)
+		if($status != -99)
+			vDsErro = "Erro na ativação"
+		endif
+		message/error vDsErro
+	endif
+end
+
+operation calcularValorTotal
+	params
+		struct pStEntrada	:IN
+		struct pStSaida		:OUT
+		string pDsErro		:OUT
+	endparams
+	variables
+		string vLsProduto, vLsProdutos
+		numeric vTpOperacao, vNrPercentual, vVlItem, vVlTotal, vVlDesconto, vNrIndex
+	endvariables
+	
+	if(pStEntrada->*->$dbgStringPlain = "")
+		pDsErro = "Struct vazia"
+		return(-99)
+	endif
+	
+	vTpOperacao = pStEntrada->tp_operacao
+	selectcase vTpOperacao
+	case 1
+		vNrPercentual = -5;1 - DInheiro - Desc 5%
+	case 2
+		vNrPercentual = 3.5;2 - Credito - Asc 3,5%
+	case 3
+		vNrPercentual = 1.5;3 - Debito - Asc 1,5%
+	elsecase
+		vNrPercentual = 0
+	endselectcase
+	
+	vLsProdutos = pStEntrada->ls_produto
+	vVlTotal = 0
+	forlist vLsProduto, vNrIndex in vLsProdutos
+		vVlItem = $item("vl_unitario", vLsProduto) * $item("QT_ITEM", vLsProduto)
+		vVlItem = vVlItem * (1 + (vNrPercentual/100))
+		vVlDesconto = vVlItem * (vNrPercentual/100)
+		putitem/id vLsProduto, "vl_item", vVlItem
+		putitem/id vLsProduto, "vl_desconto", vVlDesconto
+		vVlTotal = vVlTotal + $item("vl_item", vLsProduto)
+		putitem vLsProdutos, vNrIndex, vLsProduto
+	endfor
+	putitem/id vLsProdutos, "vl_total", vVlTotal
+	
+	pStSaida = pStEntrada
+	pStSaida->ls_produto = vLsProdutos
+	return(0)
+end
+
+operation validarNota
+	params
+		struct pStEntrada	:IN
+		struct pStSaida		:OUT
+		string pDsErro		:OUT
+	endparams
+	variables
+		numeric vNota1, vNota2, vNota3, vNota4
+		numeric vMedia, vMediaMin
+	endvariables
+
+	vNota1 = pStEntrada->vl_nota1
+	vNota2 = pStEntrada->vl_nota2
+	vNota3 = pStEntrada->vl_nota3
+	vNota4 = pStEntrada->vl_nota4
+	vMediaMin = pStEntrada->vl_mediamin
+
+	call plValidarNota(vNota1, pDsErro)
+	if($status < 0)
+		return(-99)
+	endif
+	call plValidarNota(vNota2, pDsErro)
+	if($status < 0)
+		return(-99)
+	endif
+	call plValidarNota(vNota3, pDsErro)
+	if($status < 0)
+		return(-99)
+	endif
+	call plValidarNota(vNota4, pDsErro)
+	if($status < 0)
+		return(-99)
+	endif
+	call plValidarNota(vMediaMin, pDsErro)
+	if($status < 0)
+		return(-99)
+	endif
+	
+	vMedia = vNota1 + vNota2 + vNota3 + vNota4
+	vMedia = vMedia /4
+	
+	if(vMedia >= vMediaMin)
+		pStSaida->in_aprovado = 1
+	else
+		pStSaida->in_aprovado = 0
+	endif
+	pStSaida->vl_media = vMedia
+	
+	return(0)
+end; validarNota
+
+entry plValidarNota
+	params
+		numeric pVlNota	:IN
+		string  pDsErro	:OUT
+	endparams
+	if(pVlNota < 0 | pVlNota > 10)
+		pDsErro = "Nota inválida"
+		return(-99)
+	endif
+	
+	return(0)
+end

@@ -1,0 +1,140 @@
+﻿
+;operation exec
+;	variables
+;		struct resultado
+;		boolean aprovado
+;		numeric nota
+;	endvariables
+;	
+;	activate "APTS_HOKUMURA".validarNota(0,6,6,6,6, resultado)
+;	if($status < 0)
+;		message/error "parametros fora do range de (0 a 10)"
+;		return(-1)
+;	endif
+;	nota = resultado->NOTA
+;	resultado = resultado->APROVADO
+;	message/info nota
+;	message/info resultado
+;	
+;	return(0)
+;end
+
+
+operation validarNota
+params
+	numeric nota1 : IN
+	numeric nota2 : IN
+	numeric nota3 : IN
+	numeric nota4 : IN
+	numeric nma   : IN
+	struct  estado : OUT
+endparams
+variables
+	numeric mediaTotal
+	
+endvariables
+	
+	estado = $newstruct
+
+	if(nota1 < 0 | nota1 > 10 | nota2 < 0 | nota2 > 10 | nota3 < 0 | nota3 > 10 |nota4 < 0 | nota4 > 10 |nma   < 0 | nma   > 10 )
+		estado->NOTA = -1
+		estado->APROVADO = 0
+		return(-1)
+	endif
+	
+	mediaTotal = (nota1 + nota2 + nota3 + nota4) / 4
+	
+	if(mediaTotal >= nma)
+		estado->NOTA = mediaTotal
+		estado->APROVADO = 1
+	else
+		estado->NOTA = mediaTotal
+		estado->APROVADO = 0
+	endif
+	
+	return(0)
+end
+
+operation exec
+	variables
+		struct lscompras
+		struct nota
+	endvariables
+	debug
+	lscompras = $newstruct
+	
+	lscompras->OCC{1} = $newstruct
+	lscompras->OCC{1}->NOME = "Soja"
+	lsCompras->OCC{1}->QUANTIDADE = 3
+	lsCompras->OCC{1}->UNITARIO = 4.5
+	
+	lscompras->OCC{2} = $newstruct
+	lscompras->OCC{2}->NOME = "Milho"
+	lsCompras->OCC{2}->QUANTIDADE = 5
+	lsCompras->OCC{2}->UNITARIO = 6.5
+	
+	lscompras->OCC{3} = $newstruct
+	lscompras->OCC{3}->NOME = "Cafe"
+	lsCompras->OCC{3}->QUANTIDADE = 1
+	lsCompras->OCC{3}->UNITARIO = 7
+	
+	lscompras->OCC{4} = $newstruct
+	lscompras->OCC{4}->NOME = "uva"
+	lsCompras->OCC{4}->QUANTIDADE = 2
+	lsCompras->OCC{4}->UNITARIO = 2.5
+
+	activate "APTS_HOKUMURA".compra(lscompras, 3, nota)
+	
+	return(0)
+end
+
+operation compra
+	params
+		struct ListaCompra  : IN
+		numeric tpPagamento : IN
+		struct TotalPagar   : OUT
+	endparams
+	variables
+		numeric qtCompras, vindex, vlUnitario, qtProduto, vltotal
+		string nmProduto
+		struct aux
+	endvariables
+	
+	qtCompras = ListaCompra->OCC->$collsize	
+	
+	TotalPagar = $newstruct
+	
+	vltotal = 0
+	for vindex = 1 to qtCompras
+		aux = ListaCompra->OCC{vindex}
+		vlUnitario = aux->UNITARIO
+		qtProduto = aux->QUANTIDADE
+		nmPRODUTO = aux->NOME
+		TotalPagar->OCC{vindex} = $newstruct
+		TotalPagar->OCC{vindex}->NOME = nmPRODUTO
+		TotalPagar->OCC{vindex}->QUANTIDADE = qtProduto
+		TotalPagar->OCC{vindex}->TOTAL = (qtProduto * vlUnitario)
+		vltotal += (qtProduto * vlUnitario)
+	endfor
+	
+	TotalPagar->SUBTOTAL = vltotal
+	
+	selectcase tpPagamento
+	case 1
+		;desconto 5%
+		TotalPagar->DESCONTO = "5%"
+		TotalPagar->TOTAL = vltotal - (vltotal*0.05)
+		
+	case 2
+		;acrescimo 3.5%
+		TotalPagar->TOTAL = vltotal + (vltotal*0.035)
+		TotalPagar->ACRESCIMO = "3,5%"
+	case 3
+		;acrescimo 1.5%
+		TotalPagar->TOTAL = vltotal + (vltotal*0.015)
+		TotalPagar->ACRESCIMO = "1,5%"
+	endselectcase
+	
+	
+	return(0)
+end

@@ -1,0 +1,136 @@
+﻿operation exec
+	variables
+		struct pStcEntrada, pStcSaida
+	endvariables
+	
+	debug
+	
+;	pStcEntrada->produto = $newstruct
+;	pStcEntrada->produto->nome = "Soja"
+;	pStcEntrada->produto->qtd = 100
+;	pStcEntrada->produto->valorUnit = 30
+;	
+;	pStcEntrada->produto{2} = $newstruct
+;	pStcEntrada->produto{2}->nome = "Café"
+;	pStcEntrada->produto{2}->qtd = 20
+;	pStcEntrada->produto{2}->valorUnit = 10
+;	
+;	activate "APTS_APACAGNAN".calculaValorCompra(pStcEntrada, 1, pStcSaida)
+;	if($status < 0)
+;		message/error $t_ds_erro$
+;		return(-99)
+;	endif
+
+	pStcEntrada->nota = $newstruct
+	pStcEntrada->nota{1}= 10
+	pStcEntrada->nota{2} = 5
+	pStcEntrada->nota{3} = 8
+	pStcEntrada->nota{4} = 3
+	pStcEntrada->mediaMinima = $newstruct
+	pStcEntrada->mediaMinima = 10
+	activate "APTS_APACAGNAN".aprovaAluno(pStcEntrada, pStcSaida)
+	if($status < 0)
+		message/error $t_ds_erro$
+		return(-99)
+	endif
+end ;exec
+	
+operation calculaValorCompra
+	params
+		struct pStcEntrada :IN
+		numeric pTpPagamento :IN
+		struct pStcSaida :OUT
+	endparams
+	variables
+		string vDsContexto
+		numeric i, vSubTotal, vTotal, vTaxa, vDesconto
+	endvariables
+	
+	vDsContexto = "<$componentname>.calculaValorCompra"
+	
+	if(pStcEntrada->$collsize < 1)
+		$t_ds_erro$ = "É necesário informar ao menos um produto para o cálculo. %%vDsContexto"
+		return(-99)
+	endif
+	
+	if(pTpPagamento = "" | pTpPagamento < 1 | pTpPagamento > 3)
+		$t_ds_erro$ = "Escolha uma forma de pagamento válida. %%vDsContexto"
+		return(-99)
+	endif
+	
+	pStcSaida = pStcEntrada
+	
+	for i=1 to pStcEntrada->produto->$collsize
+		pStcSaida->produto{i}->totalProduto = pStcSaida->produto{i}->qtd * pStcSaida->produto{i}->valorUnit
+		vSubtotal += pStcSaida->produto{i}->totalProduto
+	endfor
+	
+	vDesconto = 0
+	vTaxa = 0
+	selectcase(pTpPagamento)
+		
+	case 1 ;dinheiro desconto 5%
+		vDesconto = 0.05
+		vTotal = vSubTotal - (vSubtotal * vDesconto)
+	case 2 ;crédito acréscimo 3.5%
+		vTaxa = 0.035
+		vTotal = vSubTotal + (vSubtotal * vTaxa)
+	case 3 ;débito acréscimo 1.5%
+		vTaxa = 0.015
+		vTotal = vSubTotal + (vSubtotal * vTaxa)
+		
+	endselectcase
+	
+	pStcSaida->totalCompra = $newstruct
+	pStcSaida->totalCompra->subTotal = vSubTotal
+	pStcSaida->totalCompra->desconto = vDesconto
+	pStcSaida->totalCompra->taxa = vTaxa
+	pStcSaida->totalCompra->total = vTotal
+	
+	return(0)
+end ;calculaValorCompra
+
+
+operation aprovaAluno
+	params
+		struct pStcNotas :IN
+		struct pStcSaida :OUT
+	endparams
+	variables
+		string vDsContexto
+		numeric vTotalNota, i
+	endvariables
+	
+	vDsContexto = "<$componentname>.aprovaAluno"
+	
+	if(pStcNotas->nota->$collsize < 4)
+		$t_ds_erro$ = "É necessário informar todas as notas do aluno. %%vDsContexto"
+		return(-99)
+	endif
+	
+	if(pStcNotas->mediaMinima < 0 | pStcNotas->mediaMinima > 10)
+		$t_ds_erro$ = "Media fora do intervalo permitido. %%vDsContexto"
+		return(-99)
+	endif
+	
+	for i=1 to pStcNotas->nota->$collsize
+		if(pStcNotas->nota{i} < 0 | pStcNotas->nota{i} > 10)
+			$t_ds_erro$ = "Nota %%i fora do intervalo permitido. %%vDsContexto"
+			return(-99)
+		endif
+		
+		vTotalNota += pStcNotas->nota{i}
+	endfor
+	
+	pStcSaida->situacao = $newstruct
+	pStcSaida->situacao = 1
+	vTotalNota = vTotalNota / 4
+	if(vTotalNota < pStcNotas->mediaMinima)
+		pStcSaida->situacao = 0
+	endif
+	pStcSaida->mediaFinal = $newstruct
+	pStcSaida->mediaFinal = vTotalNota
+	
+	return(0)
+	
+end ;aprovaaluno

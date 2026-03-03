@@ -1,0 +1,85 @@
+﻿operation calculaCompra
+	params
+		struct pCompra : out 
+		numeric pPagamento : in
+	endparams
+	
+	variables
+		struct vProduto
+		numeric vSubTotal
+		numeric vValorItem
+		numeric vAjuste
+		numeric vTotal
+	endvariables
+	
+	vSubTotal = 0
+	
+	forlist vProduto in pCompra->produtos
+		;O algoritmo deve calcular o valor total de cada produto multiplicando a quantidade pelo valor unitário
+		vValorItem = vProduto->quantidade * vProduto->valorunitarioitem
+		;e em seguida somar esses valores para obter o sub-total da compra
+		vSubTotal = vSubTotal + vValorItem
+	endfor
+	
+	; 1 = dinheiro desconto de 5
+	; 2 = cartao de credito acrescimo de 3,5
+	; 3 = cartao de debito acrescimo de 1,5
+	
+	if (pPagamento = 1)
+		vAjuste = vSubTotal * -0.05
+	elseif (pPagamento = 2)
+		vAjuste = vSubTotal * 0.035
+	elseif (pPagamento = 3)
+		vAjuste = vSubTotal * 0.015
+	endif
+	
+;	forlist vProduto in pCompra->produtos
+;		;O algoritmo deve calcular o valor total de cada produto multiplicando a quantidade pelo valor unitário
+;		vValorItem = vProduto->quantidade * vProduto->valorunitarioitem
+;		;e em seguida somar esses valores para obter o sub-total da compra
+;		vSubTotal = vSubTotal + vValorItem
+;	endfor
+		
+	vTotal = vSubTotal + vAjuste
+	
+	pCompra->total = vTotal
+end
+
+
+
+operation verificaAprovacao
+	params
+		numeric pNota1 : IN
+		numeric pNota2 : IN
+		numeric pNota3 : IN
+		numeric pNota4 : IN
+		numeric pMediaMinima : IN
+		struct dMediaFinal : out
+		boolean situacaoAprovacao : out
+	endparams
+	
+	variables
+		numeric dSomaNotas
+		numeric dMedia
+	endvariables
+	
+	if (pNota1 < 0 | pNota2 < 0 | pNota3 <0 | pNota4 < 0)
+		message/error "Nota nao deve ser inferior a 0"
+	elseif (pNota1 > 10 | pNota2 > 10 | pNota3 > 10 | pNota4 > 10)
+		message/error "Nota nao deve ser superior a 10"
+	endif
+	
+	dSomaNotas = pNota1 + pNota2 + pNota3 + pNota4
+	dMedia = dSomaNotas / 4
+	
+	dMediaFinal->media = dMedia
+	
+	if (pMediaMinima > dMediaFinal)
+		message/error "Media nao alcancada"
+		situacaoAprovacao = false
+	else
+		situacaoAprovacao = true
+	endif
+	
+end
+	

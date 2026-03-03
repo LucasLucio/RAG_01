@@ -1,0 +1,96 @@
+﻿operation calculoValorCompras
+params 
+	struct pStEntrada : INOUT
+	numeric pFormaPag : IN
+	struct pStSaida    : OUT
+endparams
+variables
+	struct pStTmp
+	numeric vSubTotal, vUniTotal, vTotal, vDesconto, vIndex
+endvariables
+
+vSubTotal = 0
+vUniTotal = 0
+vTotal = 0
+
+pStSaida = $newstruct
+
+vIndex = 1
+while (vIndex <= pStEntrada->compra->$collsize)
+	pStSaida->compras{vIndex}->nome = pStEntrada->compras{vIndex}->nome
+	pStSaida->compras{vIndex}->preco = pStEntrada->compras{vIndex}->preco
+	pStSaida->compras{vIndex}->quantidade = pStEntrada->compras{vIndex}->quantidade
+	vUniTotal =  pStEntrada->compras{vIndex}->preco * pStEntrada->compras{vIndex}->quantidade + vUniTotal
+	pStSaida->compras{vIndex}->uniTotal = vUniTotal
+	vSubTotal = vSubTotal + vUniTotal
+	vIndex = vIndex + 1
+endwhile
+
+pStSaida->subtotal = vSubTotal
+
+selectcase pFormaPag
+case 1; Dinheiro
+	vDesconto = -(vSubTotal * 0.05)
+case 2; Cartão de Crédio
+	vDesconto = vSubTotal * 0.035
+case 3; Cartão de Débito
+	vDesconto = vSubTotal * 0.015
+endselectcase
+
+vTotal = vSubTotal + vDesconto
+pStSaida->desconto = vDesconto
+pStSaida->total = vTotal
+
+return(0)
+end ; calculoValorCompras
+
+
+operation verificacaoAprovacao
+params 
+	numeric pNota1       : IN
+	numeric pNota2       : IN
+	numeric pNota3       : IN
+	numeric pNota4       : IN
+	numeric pMediaMinima : IN
+	struct pStNota       : OUT
+endparams
+variables 
+	numeric vMediaFinal
+	boolean vInAprovado
+endvariables
+
+if (pNota1 < 0 | pNota1 > 10)
+	message/error "Primeira nota não está no intervalo entre 0 e 10"
+	return(-99)
+endif
+if (pNota2 < 0 | pNota2 > 10)
+	message/error "Segunda nota não está no intervalo entre 0 e 10"
+	return(-99)
+endif
+if (pNota3 < 0 | pNota3 > 10)
+	message/error "Terceira nota não está no intervalo entre 0 e 10"
+	return(-99)
+endif
+if (pNota4 < 0 | pNota4 > 10)
+	message/error "Quarta nota não está no intervalo entre 0 e 10"
+	return(-99)
+endif
+if (pMediaMinima < 0 | pMediaMinima > 10)
+	message/error "Média mínima não está no intervalo entre 0 e 10"
+	return(-99)
+endif
+
+vInAprovado = <G_FALSE>
+vMediaFinal = (pNota1 + pNota2 + pNota3 + pNota4) / 4
+
+if (vMediaFinal >= pMediaMinima)
+	vInAprovado = <G_TRUE>
+endif
+
+pStNota = $newstruct
+pStNota->media = vMediaFinal
+pStNota->aprovado = vInAprovado
+
+return(0)
+end ; verificacaoAprovacao
+

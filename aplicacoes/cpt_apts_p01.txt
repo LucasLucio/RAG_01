@@ -1,0 +1,66 @@
+﻿
+
+operation valida_notas
+	params
+		struct pstcEntrada  : IN
+		struct pStcSaida	: OUT
+		string pDsErro		: OUT
+	endparams
+	variables
+		numeric vContadorNotas,vMediasNota, vMediaMinima, vNotaAtual
+	endvariables
+	
+	vMediasNota = 0
+	vMediaMinima = pStcEntrada->mediaMinima
+	
+
+	for vContadorNotas = 1 to pStcEntrada->notas->$collSize
+		vNotaAtual = pStcEntrada->notas{vContadorNotas}
+		if (vNotaAtual < vMediaMinima)
+			pDsErro = "A nota %%vNotaAtual é menor que a média: $$vMediaMinima"
+			return -99
+		endif
+		vMediasNota = vMediasNota + vNotaAtual
+	endfor
+	
+	if (vMediasNota < vMediaMinima)
+		pDsErro = "A sua média: %%vMediasNota é menor que a média: $$vMediaMinima"
+		return -99
+	endif
+	pStcSaida->Media = vMediasNota
+	pStcSaida->stAprovado = "T"
+	return 0
+end; valida_notas
+
+operation pl_calcula_valor ; usando ia
+	params
+		 struct pStcEntrada : IN
+		 struct pStcSaida	: OUT
+	endparams
+	
+	variables
+		numeric vValorTotal, vTipoCompra
+	endvariables
+
+	vValorTotal = 0
+	
+	for (numeric vProduto = 1 to pStcEntrada->produtos->$collsize) {
+		struct vProdutoStruct = pStcEntrada->produtos->{vProduto};
+		
+		vValorTotal += (vProdutosStruct->$scalar(1).value * vProdutoStruct->$scala)
+	}
+	
+	pTipoCompra = pStcEntrada->tipoCompra
+	
+	if pTipoCompra == 1 then
+		fPercentual = 0.05
+	elseif
+		fPercentual = 0.035
+	else
+		fPercentual = 0.015
+		
+	pValorCalculado = pValorTotal * (1+ fPercentual)
+	
+	return (0)
+	end
+end; calculoCompras

@@ -1,0 +1,152 @@
+﻿operation exec
+	variables
+		struct vCompra
+		numeric vFormaPag
+		struct vAluno
+		struct vResultado
+	endvariables
+	debug
+	;------Exe 2------;
+	vAluno = $newstruct
+	call plCriaAluno(vAluno)
+	call plVereficaNotas(vAluno, vResultado)
+	if($status < 0)
+		message/error $t_ds_erro$
+	endif
+	if(vResultado->aprovado = 0)
+		message/info "reprovado"
+	else
+		message/info "aprovado"
+	endif
+	;------Exe 1------;
+	vCompra = $newstruct
+	call plCriaStruct(vCompra)
+	;1- dinheiro
+	;2- cartao
+	;3- debito
+	vFormaPag = 2
+	call plCalculaTotal(vCompra, vFormaPag)
+	
+end
+
+
+entry plCriaStruct
+	params
+		struct pStcCompra	: inout
+	endparams
+	
+	pStcCompra->produto = $newstruct
+	pStcCompra->produto->nome 			= "Farinha"
+	pStcCompra->produto->quantidade 	= 2
+	pStcCompra->produto->valor 			= 10.5
+	
+	pStcCompra->produto{2} = $newstruct
+	pStcCompra->produto{2}->nome		= "Pao"
+	pStcCompra->produto{2}->quantidade 	= 5
+	pStcCompra->produto{2}->valor 		= 20
+	
+	pStcCompra->produto{3} = $newstruct
+	pStcCompra->produto{3}->nome 		= "oleo"
+	pStcCompra->produto{3}->quantidade 	= 1
+	pStcCompra->produto{3}->valor		= 50.5
+	
+	pStcCompra->produto{3} = $newstruct
+	pStcCompra->produto{3}->nome 		= "cafe"
+	pStcCompra->produto{3}->quantidade 	= 6
+	pStcCompra->produto{3}->valor 		= 102.99
+	
+	return 0
+	
+end;plCriaStruct
+entry plCalculaTotal
+	params
+		struct 	pStcCompra	: inout
+		numeric pFormaPag	: in
+	endparams
+	variables
+		numeric vValorTotal
+		numeric vDesconto
+		numeric vValorDesconto
+		numeric vSubTotal
+		numeric vValor
+		numeric vOcc
+	endvariables
+	
+
+	for vOcc = 1 to pStcCompra->$membercount
+		vValor = pStcCompra->produto{vOcc}->valor *  pStcCompra->produto{vOcc}->quantidade
+		pStcCompra->produto{vOcc}->valorTotal = vValor
+		vSubTotal = vSubTotal + vValor
+	endfor
+	pStcCompra->produto->subTotal = vSubTotal
+	if(pFormaPag = 1)
+		vDesconto = 0.05
+		vValorDesconto = vSubTotal * vDesconto
+		pStcCompra->produto->valorfinal = vSubTotal - vValorDesconto
+		pStcCompra->produto->desconto = vValorDesconto
+	elseif(pFormaPag = 2)
+		vDesconto = 0.035
+		vValorDesconto = vSubTotal * vDesconto
+		pStcCompra->produto->valorfinal = vSubTotal + vValorDesconto
+		pStcCompra->produto->acrescimo = vValorDesconto
+	else
+		vDesconto = 0.015
+		vValorDesconto = vSubTotal * vDesconto
+		pStcCompra->produto->valorfinal = vSubTotal + vValorDesconto
+		pStcCompra->produto->acrescimo = vValorDesconto
+	endif
+	
+	
+	
+	return 0
+	
+end;plCalculaTotal
+
+entry plCriaAluno
+	params
+		struct pAluno : inout
+	endparams
+	
+	pAluno->nota{1} = 10
+	pAluno->nota{2} = 10
+	pAluno->nota{3} = 09
+	pAluno->nota{4} = 09
+	pAluno->mediaminima = 09.6
+	
+	return 0
+
+entry plVereficaNotas
+	params
+		struct pStcNotas : in
+		struct pStcSaida : out
+	endparams
+	variables
+		numeric vOcc
+		numeric media
+	endvariables
+	
+	
+	if(pStcNotas->mediaminima < 0 | pStcNotas->mediaminima > 10)
+		$t_ds_erro$ = "A nota do Aluno está fora do intervalo permitido de (0 a 10)"
+		return -99
+	endif
+	
+	for vOcc = 1 to pStcNotas->$membercount
+		if(pStcNotas->nota{vOcc} < 0 | pStcNotas->nota{vOcc} > 10)
+			$t_ds_erro$ = "A media minima está fora do intervalo permitido de (0 a 10)"
+			return -99
+		endif
+		media += pStcNotas->nota{vOcc}
+	endfor
+	media = media/4
+	
+	pStcSaida = $newstruct
+	pStcSaida->mediafinal = media
+	if(media >= pStcNotas->mediaminima)
+		pStcSaida->aprovado = 1
+	else
+		pStcSaida->aprovado = 0
+	endif
+	
+	return 0
+end;plVereficaNotas
