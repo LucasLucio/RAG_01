@@ -1,8 +1,4 @@
-﻿
-;|
-;Autor: vguimaraes
-;Data:	05/01/2026
-operation calculaNota
+﻿operation calculaNota
 	params
 		struct pStcEntrada 	:IN
 		struct pStcSaida 	:OUT
